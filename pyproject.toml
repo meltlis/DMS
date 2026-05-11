@@ -1,0 +1,36 @@
+[project]
+name = "dms-system"
+version = "0.1.0"
+description = "Lightweight DMS pipeline scaffold based on CLAUDE.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "opencv-python>=4.9",
+  "pyyaml>=6.0",
+  "mediapipe>=0.10",
+  "ultralytics>=8.4",
+  "torch==2.5.1",
+  "torchvision==0.20.1",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "python-multipart>=0.0.9"
+]
+
+[project.scripts]
+dms-pipeline = "src.pipeline:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
+
+[tool.setuptools]
+packages = ["src", "src.perception", "src.features", "src.temporal", "src.decision"]

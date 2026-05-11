@@ -1,0 +1,9 @@
+path: ./eval/miniset
+train: train/images
+val: val/images
+test: test/images
+names:
+  0: face
+  1: phone
+  2: cigarette
+  3: seatbelt

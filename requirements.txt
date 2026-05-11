@@ -1,0 +1,21 @@
+# DMS System - Python Dependencies
+#
+# Install with pip (CPU only):
+#   pip install -r requirements.txt
+#
+# Install with pip (CUDA 12.1, recommended for GPU):
+#   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
+#
+# Install with uv:
+#   uv pip install -r requirements.txt
+
+numpy>=1.26
+opencv-python>=4.9
+pyyaml>=6.0
+mediapipe>=0.10
+ultralytics>=8.4
+torch==2.5.1
+torchvision==0.20.1
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9

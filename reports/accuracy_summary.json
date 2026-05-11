@@ -1,0 +1,19 @@
+{
+  "config": {
+    "max_frames": 5,
+    "frame_stride": 1,
+    "sleepy_ratio_threshold": 0.15
+  },
+  "drozy": {
+    "videos_total": 36,
+    "videos_with_gt": 36,
+    "fatigue_binary_accuracy": 0.6388888888888888,
+    "gt_rule": "sleepy if KSS>=7"
+  },
+  "inner_mirror": {
+    "videos_total": 30,
+    "videos_with_gt": 0,
+    "fatigue_binary_accuracy": null,
+    "note": "No fatigue ground-truth labels found in dataset files; accuracy is not computable."
+  }
+}

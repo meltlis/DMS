@@ -1,0 +1,14 @@
+ear_threshold: 0.16
+mar_threshold: 0.50
+perclos_warning: 0.15
+perclos_alert: 0.30
+yaw_threshold_deg: 30
+gaze_away_seconds: 2.0
+phone_iou_threshold: 0.10
+phone_duration_seconds: 2.0
+window_seconds: 3.0
+yolo_skip_frames: 3
+yolo_confidence: 0.5
+seatbelt_check_interval: 30
+clahe_brightness_thresh: 80
+clahe_clip_limit: 2.0

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>驾驶员疲劳监测系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+
+:root{
+  --white:#ffffff;
+  --surface:#f8f7f5;
+  --border:#e5e2dc;
+  --border2:#d4d0ca;
+  --text:#1a1916;
+  --muted:#6b6860;
+  --muted2:#9b9890;
+  --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --c-ok:#1a6e3e;
+  --c-warn:#9a5f00;
+  --c-alert:#b01c22;
+  --bg-ok:#edf7f2;
+  --bg-warn:#fdf6e3;
+  --bg-alert:#fdf0f0;
+  --bd-ok:#b7dfca;
+  --bd-warn:#f0d899;
+  --bd-alert:#f5bdbd;
+  --navy:#1c2f4a;
+  --r:10px;
+}
+
+body{font-family:var(--sans);background:var(--white);color:var(--text);display:flex;flex-direction:column}
+
+/* ── header ── */
+header{
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 28px;
+  border-bottom:1px solid var(--border);
+}
+.h-title{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:22px;
+  letter-spacing:-.01em;
+  color:var(--navy);
+  line-height:1;
+}
+.h-title em{font-style:italic;font-weight:400}
+.h-sub{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:3px}
+.h-right{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:background .3s;flex-shrink:0}
+.conn-dot.ok{background:var(--c-ok)}
+.conn-dot.err{background:var(--c-alert)}
+
+/* ── layout ── */
+main{flex:1;display:flex;overflow:hidden}
+
+/* ── video ── */
+.video-section{
+  flex:1;display:flex;flex-direction:column;
+  padding:18px 22px;gap:12px;
+  border-right:1px solid var(--border);overflow:hidden;
+}
+.source-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.tab-group{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
+.tab{
+  padding:5px 14px;border:none;background:transparent;border-radius:6px;
+  font-family:var(--sans);font-size:13px;font-weight:500;color:var(--muted);
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.tab.active{background:var(--white);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tab:hover:not(.active){color:var(--text)}
+.btn{
+  padding:6px 16px;border-radius:8px;border:1px solid transparent;
+  font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;
+  transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn-primary:hover{background:#243858}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-stop{background:var(--bg-alert);color:var(--c-alert);border-color:var(--bd-alert)}
+.btn-stop:hover{background:#fae0e0}
+.fps-badge{margin-left:auto;font-size:12px;color:var(--muted2);font-variant-numeric:tabular-nums}
+
+.video-wrapper{
+  flex:1;background:#0d0d0d;border-radius:var(--r);overflow:hidden;
+  position:relative;min-height:180px;
+}
+/* 视频元素保持正常尺寸以确保浏览器正常解码帧 */
+#videoEl{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  object-fit:contain;background:#0d0d0d;
+}
+/* 服务器标注帧叠加在视频上方 */
+#frameEl{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  object-fit:contain;display:none;z-index:2;
+}
+.no-signal{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;
+  gap:12px;color:#444;user-select:none;z-index:10;
+}
+.no-signal svg{opacity:.3}
+.no-signal-text{font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#555}
+.loading-bar{
+  position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--navy),transparent);
+  background-size:200% 100%;animation:shimmer 1.4s infinite;display:none;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── metrics panel ── */
+.metrics-section{
+  width:340px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;
+  padding:16px 14px;display:flex;flex-direction:column;gap:10px;
+}
+.metrics-section::-webkit-scrollbar{width:3px}
+.metrics-section::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── card ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.card-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:10px}
+
+/* ── 主状态卡 ── */
+.status-card{
+  border-left:4px solid var(--border2);
+  transition:border-color .4s,background .4s,border .4s;
+}
+.status-card.ok  {border-left-color:var(--c-ok);  background:var(--bg-ok);  border-color:var(--bd-ok)}
+.status-card.warn{border-left-color:var(--c-warn);background:var(--bg-warn);border-color:var(--bd-warn)}
+.status-card.alrt{border-left-color:var(--c-alert);background:var(--bg-alert);border-color:var(--bd-alert);animation:pulse .9s infinite alternate}
+@keyframes pulse{from{background:var(--bg-alert)}to{background:#fbe6e6}}
+
+.status-main{font-size:26px;font-weight:600;letter-spacing:.02em;color:var(--muted);transition:color .3s}
+.status-main.ok  {color:var(--c-ok)}
+.status-main.warn{color:var(--c-warn)}
+.status-main.alrt{color:var(--c-alert)}
+.status-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* ── 疲劳指数 ── */
+.score-row{display:flex;align-items:flex-end;gap:12px;margin-bottom:10px}
+.score-num{
+  font-size:46px;font-weight:600;font-variant-numeric:tabular-nums;
+  line-height:1;color:var(--muted);transition:color .3s;
+}
+.score-num.ok  {color:var(--c-ok)}
+.score-num.warn{color:var(--c-warn)}
+.score-num.alrt{color:var(--c-alert)}
+.score-unit{font-size:14px;color:var(--muted);padding-bottom:6px}
+.score-bar-track{width:100%;height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:6px}
+.score-bar-fill{height:100%;border-radius:5px;transition:width .4s ease,background .4s}
+.score-desc{font-size:12px;color:var(--muted)}
+
+/* ── 症状列表 ── */
+.symptom-list{display:flex;flex-direction:column;gap:7px}
+.symptom-item{
+  display:flex;align-items:center;gap:9px;
+  font-size:13px;color:var(--text);
+  padding:8px 10px;border-radius:8px;
+  background:rgba(255,255,255,.7);border:1px solid var(--border);
+}
+.symptom-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.symptom-dot.warn{background:var(--c-warn)}
+.symptom-dot.alrt{background:var(--c-alert)}
+.no-symptom{font-size:13px;color:var(--muted2);padding:6px 0}
+
+/* ── 眼睛&注意力 ── */
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini-card{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:8px;padding:10px 12px;
+}
+.mini-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2);margin-bottom:6px}
+.mini-val{font-size:14px;font-weight:500;color:var(--text)}
+.mini-val.ok  {color:var(--c-ok)}
+.mini-val.warn{color:var(--c-warn)}
+.mini-val.alrt{color:var(--c-alert)}
+
+.eye-bar-track{width:100%;height:4px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden}
+.eye-bar-fill{height:100%;border-radius:2px;transition:width .25s,background .25s}
+
+/* ── 建议 ── */
+.advice-card{
+  border:1px solid var(--border);border-radius:var(--r);
+  padding:14px 16px;display:flex;align-items:flex-start;gap:10px;
+  transition:background .4s,border-color .4s;
+}
+.advice-card.ok  {background:#edf7f2;border-color:var(--bd-ok)}
+.advice-card.warn{background:#fdf6e3;border-color:var(--bd-warn)}
+.advice-card.alrt{background:#fdf0f0;border-color:var(--bd-alert)}
+.advice-icon{font-size:20px;flex-shrink:0;line-height:1.4}
+.advice-text{font-size:13px;line-height:1.65;color:var(--text)}
+.advice-text strong{display:block;font-weight:600;font-size:13px;margin-bottom:2px}
+
+#fileInput{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-title">驾驶员 <em>疲劳监测</em> 系统</div>
+    <div class="h-sub">实时分析</div>
+  </div>
+  <div class="h-right">
+    <div class="conn-dot" id="connDot"></div>
+    <span id="connLabel">未连接</span>
+  </div>
+</header>
+
+<main>
+  <!-- 视频区 -->
+  <section class="video-section">
+    <div class="source-bar">
+      <div class="tab-group">
+        <button class="tab active" data-mode="camera">摄像头</button>
+        <button class="tab" data-mode="video">视频文件</button>
+        <button class="tab" data-mode="image">图片</button>
+      </div>
+      <input type="file" id="fileInput">
+      <button class="btn btn-primary" id="actionBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+        开启摄像头
+      </button>
+      <button class="btn btn-stop" id="stopBtn" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        停止
+      </button>
+      <span class="fps-badge" id="fpsBadge"></span>
+    </div>
+
+    <div class="video-wrapper">
+      <video id="videoEl" muted autoplay playsinline></video>
+      <img id="frameEl" alt="监测画面">
+      <div class="no-signal" id="noSignal">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.2">
+          <rect x="2" y="7" width="20" height="14" rx="2"/>
+          <path d="M16 3l-4 4-4-4"/>
+          <circle cx="12" cy="14" r="3"/>
+        </svg>
+        <span class="no-signal-text">暂无画面输入</span>
+      </div>
+      <div class="loading-bar" id="loadingBar"></div>
+    </div>
+  </section>
+
+  <!-- 指标区 -->
+  <aside class="metrics-section">
+
+    <!-- 驾驶状态 -->
+    <div class="card status-card" id="statusCard">
+      <div class="card-label">当前驾驶状态</div>
+      <div class="status-main" id="statusMain">状态良好</div>
+      <div class="status-sub" id="statusSub">系统监测中，请保持专注驾驶</div>
+    </div>
+
+    <!-- 疲劳指数 -->
+    <div class="card">
+      <div class="card-label">疲劳程度</div>
+      <div class="score-row">
+        <span class="score-num" id="scoreNum">—</span>
+        <span class="score-unit">/ 100</span>
+      </div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" id="scoreFill" style="width:0%"></div>
+      </div>
+      <div class="score-desc" id="scoreDesc">等待检测数据…</div>
+    </div>
+
+    <!-- 疲劳信号 -->
+    <div class="card">
+      <div class="card-label">检测到的疲劳信号</div>
+      <div class="symptom-list" id="symptomList">
+        <span class="no-symptom">暂未检测到疲劳信号</span>
+      </div>
+    </div>
+
+    <!-- 眼睛 & 注意力 -->
+    <div class="status-grid">
+      <div class="mini-card">
+        <div class="mini-label">眼睛状态</div>
+        <div class="mini-val" id="eyeState">—</div>
+        <div class="eye-bar-track">
+          <div class="eye-bar-fill" id="eyeBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-label">注意力方向</div>
+        <div class="mini-val" id="attnState">—</div>
+      </div>
+    </div>
+
+    <!-- 驾驶建议 -->
+    <div class="advice-card ok" id="adviceCard">
+      <div class="advice-icon" id="adviceIcon">✅</div>
+      <div class="advice-text">
+        <strong id="adviceTitle">状态良好</strong>
+        <span id="adviceBody">驾驶状态正常，请继续保持专注。</span>
+      </div>
+    </div>
+
+  </aside>
+</main>
+
+<canvas id="hiddenCanvas" style="display:none"></canvas>
+
+<script>
+const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL      = `${protocol}//${location.host}/ws`;
+const WS_FILE_URL = `${protocol}//${location.host}/ws/file`;
+const API_URL     = location.origin;
+
+let ws = null, stream = null, mode = 'camera';
+let running = false, busy = false;
+let fpsCount = 0, lastFpsTs = 0;
+let lastSendTs = 0;
+const TARGET_FPS = 15; // 限制发帧频率，匹配后端处理能力
+
+const $ = id => document.getElementById(id);
+const videoEl = $('videoEl'), frameEl = $('frameEl'), noSignal = $('noSignal');
+const actionBtn = $('actionBtn'), stopBtn = $('stopBtn'), fileInput = $('fileInput');
+const fpsBadge = $('fpsBadge'), connDot = $('connDot'), connLabel = $('connLabel');
+const loadingBar = $('loadingBar');
+const hiddenCvs = $('hiddenCanvas'), hiddenCtx = hiddenCvs.getContext('2d');
+
+// ── tab ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    if (running) return;
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    mode = t.dataset.mode;
+    syncBtn();
+  });
+});
+
+const BTN_LABELS = { camera:'开启摄像头', video:'选择视频', image:'选择图片' };
+const BTN_ICONS  = {
+  camera:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>',
+  video :'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="5" width="15" height="14" rx="2"/><polygon points="17 9 22 6 22 18 17 15" fill="currentColor" stroke="none"/></svg>',
+  image :'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+};
+function syncBtn() { actionBtn.innerHTML = BTN_ICONS[mode] + ' ' + BTN_LABELS[mode]; }
+
+// ── actions ───────────────────────────────────────────────────────────────
+actionBtn.addEventListener('click', async () => {
+  if (mode === 'camera') await startCamera();
+  else { fileInput.accept = mode === 'video' ? 'video/*' : 'image/*'; fileInput.click(); }
+});
+stopBtn.addEventListener('click', stopAll);
+fileInput.addEventListener('change', () => {
+  const f = fileInput.files[0];
+  if (!f) return;
+  if (mode === 'video') startVideo(f); else analyzeImage(f);
+  fileInput.value = '';
+});
+
+// ── websocket ─────────────────────────────────────────────────────────────
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+  ws.binaryType = 'arraybuffer';
+  ws.onopen    = () => setConn('ok', '已连接');
+  ws.onclose   = () => { setConn('', '未连接'); busy = false; if (running) setTimeout(connectWS, 1500); };
+  ws.onerror   = () => setConn('err', '连接异常');
+  ws.onmessage = e => {
+    try { const d = JSON.parse(e.data); showFrame(d.frame); updateUI(d.state); fpsCount++; } catch(_){}
+    busy = false;
+  };
+}
+function setConn(cls, label) {
+  connDot.className = 'conn-dot' + (cls ? ' '+cls : '');
+  connLabel.textContent = label;
+}
+
+// ── camera ────────────────────────────────────────────────────────────────
+async function startCamera() {
+  actionBtn.disabled = true;
+  loadingBar.style.display = 'block';
+  try {
+    stream = await navigator.mediaDevices.getUserMedia(
+      { video: { width:{ideal:640}, height:{ideal:480}, facingMode:'user' } });
+    videoEl.srcObject = stream;
+    await videoEl.play();
+  } catch(err) { alert('摄像头错误：' + err.message); actionBtn.disabled=false; loadingBar.style.display='none'; return; }
+  await fetch(API_URL+'/reset',{method:'POST'}).catch(()=>{});
+  connectWS(); go();
+}
+
+// 上传视频到服务端（支持任意格式，由 OpenCV 解码）
+function uploadVideo(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API_URL + '/upload-video');
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch { reject(new Error('响应解析失败')); }
+      } else {
+        reject(new Error(`上传失败 (${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('网络错误'));
+    const fd = new FormData();
+    fd.append('file', file);
+    xhr.send(fd);
+  });
+}
+
+async function startVideo(file) {
+  actionBtn.disabled = true;
+  loadingBar.style.display = 'block';
+  noSignal.style.display = 'none';
+  frameEl.style.display = 'none';
+  fpsBadge.textContent = '上传中 0%';
+
+  // 第一步：上传到服务器（浏览器不支持 AVI，由服务端 OpenCV 解码）
+  let uploadData;
+  try {
+    uploadData = await uploadVideo(file, pct => {
+      fpsBadge.textContent = `上传中 ${Math.round(pct * 100)}%`;
+    });
+  } catch(e) {
+    alert('上传失败：' + e.message);
+    loadingBar.style.display = 'none';
+    noSignal.style.display = 'flex';
+    actionBtn.disabled = false;
+    fpsBadge.textContent = '';
+    return;
+  }
+
+  fpsBadge.textContent = '分析中…';
+
+  // 第二步：连接 /ws/file，服务端主动推帧
+  const fileWS = new WebSocket(WS_FILE_URL);
+  ws = fileWS;
+
+  fileWS.onopen = () => {
+    setConn('ok', '分析中');
+    fileWS.send(JSON.stringify({ path: uploadData.path }));
+    running = true;
+    actionBtn.style.display = 'none';
+    stopBtn.style.display = 'inline-flex';
+  };
+
+  fileWS.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.done) {
+        fpsBadge.textContent = '分析完成 ✓';
+        running = false;
+        stopBtn.style.display = 'none';
+        actionBtn.style.display = 'inline-flex';
+        actionBtn.disabled = false;
+        setConn('', '完成');
+        return;
+      }
+      if (d.error) {
+        alert('视频处理失败：' + d.error);
+        stopAll();
+        return;
+      }
+      showFrame(d.frame);
+      updateUI(d.state);
+      if (d.progress != null) {
+        fpsBadge.textContent = Math.round(d.progress * 100) + '%';
+      }
+    } catch(_) {}
+  };
+
+  fileWS.onclose = () => {
+    if (running) setConn('', '中断');
+    running = false;
+  };
+
+  fileWS.onerror = () => setConn('err', '连接异常');
+}
+
+function go() {
+  running=true; busy=false;
+  actionBtn.style.display='none'; stopBtn.style.display='inline-flex';
+  requestAnimationFrame(frameLoop);
+}
+
+async function analyzeImage(file) {
+  loadingBar.style.display='block'; noSignal.style.display='none'; frameEl.style.display='none';
+  try {
+    const fd=new FormData(); fd.append('file',file);
+    const r = await fetch(API_URL+'/analyze',{method:'POST',body:fd});
+    const d = await r.json();
+    if (d.frame) showFrame(d.frame);
+    if (d.state) updateUI(d.state);
+  } catch(e){ console.error(e); }
+  loadingBar.style.display='none';
+}
+
+// ── frame loop ────────────────────────────────────────────────────────────
+function frameLoop() {
+  if (!running) return;
+  requestAnimationFrame(frameLoop);
+  if (busy || !ws || ws.readyState!==WebSocket.OPEN || videoEl.readyState<2) return;
+
+  // 帧率限制：避免发帧过快导致后端堆积
+  const tsNow = performance.now();
+  if (tsNow - lastSendTs < 1000 / TARGET_FPS) return;
+  lastSendTs = tsNow;
+
+  // 限制分辨率降低传输/处理开销
+  const MAX_W = 480, MAX_H = 360;
+  let vw = videoEl.videoWidth  || 640;
+  let vh = videoEl.videoHeight || 480;
+  if (vw > MAX_W || vh > MAX_H) {
+    const scale = Math.min(MAX_W / vw, MAX_H / vh);
+    vw = Math.round(vw * scale);
+    vh = Math.round(vh * scale);
+  }
+  hiddenCvs.width  = vw;
+  hiddenCvs.height = vh;
+  hiddenCtx.drawImage(videoEl, 0, 0, vw, vh);
+
+  busy = true;
+  hiddenCvs.toBlob(blob => {
+    blob.arrayBuffer().then(buf => {
+      if (ws && ws.readyState===WebSocket.OPEN) ws.send(buf);
+      else busy=false;
+    });
+  }, 'image/jpeg', 0.50);
+
+  const now = performance.now();
+  if (now - lastFpsTs >= 1000) {
+    fpsBadge.textContent = fpsCount + ' fps';
+    fpsCount = 0; lastFpsTs = now;
+  }
+}
+
+function stopAll() {
+  running = false; busy = false;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  videoEl.pause();
+  videoEl.srcObject = null;
+  videoEl.src = '';
+  videoEl.load(); // 释放资源
+  frameEl.style.display = 'none';
+  frameEl.src = '';
+  noSignal.style.display = 'flex';
+  loadingBar.style.display = 'none';
+  actionBtn.style.display = 'inline-flex';
+  actionBtn.disabled = false;
+  stopBtn.style.display = 'none';
+  fpsBadge.textContent = '';
+  fpsCount = 0;
+  setConn('', '未连接');
+  resetUI();
+}
+
+function showFrame(b64) {
+  frameEl.src = 'data:image/jpeg;base64,' + b64;
+  frameEl.style.display = 'block';
+  noSignal.style.display = 'none';
+  loadingBar.style.display = 'none';
+  actionBtn.disabled = false;
+}
+
+// ── UI update ─────────────────────────────────────────────────────────────
+const STATE_CLS  = { NORMAL:'ok', WARNING:'warn', ALERT:'alrt' };
+const STATE_TEXT = { NORMAL:'状态良好', WARNING:'轻度疲劳', ALERT:'严重疲劳' };
+const STATE_SUB  = {
+  NORMAL: '系统监测中，请保持专注驾驶',
+  WARNING:'检测到疲劳迹象，请注意行车安全',
+  ALERT:  '疲劳程度较高，存在安全风险！',
+};
+const ADVICE = {
+  ok:  { icon:'✅', title:'驾驶状态良好', body:'未检测到明显疲劳，请继续保持专注，安全驾驶。' },
+  warn:{ icon:'⚠️', title:'建议适当休息', body:'检测到疲劳迹象。建议开窗通风、播放音乐，或在安全地点停车稍事休息。' },
+  alrt:{ icon:'🛑', title:'请立即停车休息', body:'疲劳程度较高，继续驾驶存在危险。请尽快找到安全地点停车休息。' },
+};
+
+function fatigueScore(s) {
+  let n = 0;
+  if (s.perclos           != null) n += Math.min(s.perclos / 0.30, 1) * 40;
+  if (s.continuous_closed != null) n += Math.min(s.continuous_closed / 3.0, 1) * 25;
+  if (s.yawn_count        != null) n += Math.min(s.yawn_count / 5.0, 1) * 15;
+  if (s.lstm_score        != null) n += s.lstm_score * 20;
+  // hard floor/ceil from rule engine state
+  if (s.fatigue === 'ALERT')   n = Math.max(n, 70);
+  if (s.fatigue === 'WARNING') n = Math.max(n, 30);
+  if (s.fatigue === 'NORMAL')  n = Math.min(n, 45);
+  return Math.min(Math.round(n), 100);
+}
+
+function getSymptoms(s) {
+  const items = [];
+  // PERCLOS：眼睛在 3 秒窗口内闭合比例
+  if (s.perclos != null && s.perclos >= 0.15)
+    items.push({t:'眼睛闭合频率偏高', lvl: s.perclos >= 0.30 ? 'alrt' : 'warn'});
+
+  // 哈欠：当前帧 MAR 需 >= 0.70（避免轻微张嘴误报）
+  if (s.mar != null && s.mar >= 0.70)
+    items.push({t:'检测到哈欠动作', lvl:'warn'});
+
+  // 持续闭眼
+  if (s.continuous_closed != null && s.continuous_closed >= 1.5)
+    items.push({t:`眼睛持续闭合 ${s.continuous_closed.toFixed(1)} 秒`,
+                lvl: s.continuous_closed >= 3 ? 'alrt' : 'warn'});
+
+  // yawn_count 是窗口内哈欠帧数（非次数），窗口约 90 帧；>= 15 帧才有意义
+  if (s.yawn_count != null && s.yawn_count >= 15)
+    items.push({t:'持续哈欠中', lvl: s.yawn_count >= 30 ? 'alrt' : 'warn'});
+
+  // 点头：events/s，>= 0.6/s 才报警（之前 0.25/s 太敏感）
+  if (s.nod_freq != null && s.nod_freq >= 0.6)
+    items.push({t:'检测到点头现象', lvl:'warn'});
+
+  // 视线偏离：纯 yaw 超 40° 才算（驾驶员低头不报警）
+  if (s.yaw != null && Math.abs(s.yaw) > 40)
+    items.push({t:'视线偏离前方', lvl: Math.abs(s.yaw) > 55 ? 'alrt' : 'warn'});
+
+  if (s.lstm_pred === 1)
+    items.push({t:'行为特征分析显示疲劳', lvl:'warn'});
+
+  return items;
+}
+
+function eyeState(ear) {
+  if (ear == null) return { text:'—', cls:'', pct:0 };
+  if (ear < 0.14)  return { text:'闭眼',    cls:'alrt', pct: Math.round(ear/0.14*20)   };
+  if (ear < 0.20)  return { text:'半睁眼',  cls:'warn', pct: Math.round(ear/0.35*100)  };
+                   return { text:'正常睁眼', cls:'ok',   pct: Math.min(Math.round(ear/0.35*100), 100) };
+}
+
+function attnState(yaw, pitch) {
+  // 只用 yaw（左右偏转）判断注意力，驾驶员自然低头（pitch 偏大）不应报警
+  const y = yaw != null ? Math.abs(yaw) : 0;
+  if (y > 45) return { text:'注意力分散', cls:'alrt' };
+  if (y > 30) return { text:'轻度分散',   cls:'warn' };
+  return { text:'专注前方', cls:'ok' };
+}
+
+function scoreColor(n) {
+  if (n >= 70) return '#b01c22';
+  if (n >= 35) return '#9a5f00';
+  return '#1a6e3e';
+}
+function scoreDesc(n, f) {
+  if (f === 'ALERT')   return '疲劳程度严重，行车风险高';
+  if (f === 'WARNING') return '存在一定疲劳，请注意休息';
+  if (n < 15)          return '精神状态良好';
+  return '疲劳程度较低，继续监测中';
+}
+
+function updateUI(s) {
+  if (!s) return;
+  const fc  = STATE_CLS[s.fatigue]  || 'ok';
+  const score = fatigueScore(s);
+  const symptoms = getSymptoms(s);
+  const avg_ear = (s.ear_left!=null && s.ear_right!=null) ? (s.ear_left+s.ear_right)/2 : null;
+  const eye  = eyeState(avg_ear);
+  const attn = attnState(s.yaw, s.pitch);
+
+  // 状态卡
+  const sc = $('statusCard');
+  sc.className = 'card status-card ' + fc;
+  $('statusMain').className = 'status-main ' + fc;
+  $('statusMain').textContent = STATE_TEXT[s.fatigue] || '状态良好';
+  $('statusSub').textContent  = STATE_SUB[s.fatigue]  || '';
+
+  // 疲劳指数
+  const color = scoreColor(score);
+  $('scoreNum').textContent = score;
+  $('scoreNum').className   = 'score-num ' + fc;
+  const sf = $('scoreFill');
+  sf.style.width      = score + '%';
+  sf.style.background = color;
+  $('scoreDesc').textContent = scoreDesc(score, s.fatigue);
+
+  // 症状
+  const sl = $('symptomList');
+  if (symptoms.length === 0) {
+    sl.innerHTML = '<span class="no-symptom">暂未检测到疲劳信号</span>';
+  } else {
+    sl.innerHTML = symptoms.map(({t, lvl}) =>
+      `<div class="symptom-item"><div class="symptom-dot ${lvl}"></div>${t}</div>`
+    ).join('');
+  }
+
+  // 眼睛
+  $('eyeState').textContent  = eye.text;
+  $('eyeState').className    = 'mini-val ' + eye.cls;
+  $('eyeBar').style.width    = eye.pct + '%';
+  $('eyeBar').style.background = eye.cls==='alrt'?'#b01c22':eye.cls==='warn'?'#9a5f00':'#1a6e3e';
+
+  // 注意力
+  $('attnState').textContent = attn.text;
+  $('attnState').className   = 'mini-val ' + attn.cls;
+
+  // 建议
+  const adv = ADVICE[fc];
+  const ac = $('adviceCard');
+  ac.className          = 'advice-card ' + fc;
+  $('adviceIcon').textContent  = adv.icon;
+  $('adviceTitle').textContent = adv.title;
+  $('adviceBody').textContent  = adv.body;
+}
+
+function resetUI() {
+  $('statusCard').className = 'card status-card';
+  $('statusMain').className = 'status-main';
+  $('statusMain').textContent = '状态良好';
+  $('statusSub').textContent  = '系统监测中，请保持专注驾驶';
+  $('scoreNum').textContent = '—';
+  $('scoreNum').className   = 'score-num';
+  $('scoreFill').style.width = '0%';
+  $('scoreDesc').textContent = '等待检测数据…';
+  $('symptomList').innerHTML = '<span class="no-symptom">暂未检测到疲劳信号</span>';
+  $('eyeState').textContent  = '—'; $('eyeState').className = 'mini-val';
+  $('attnState').textContent = '—'; $('attnState').className = 'mini-val';
+  $('eyeBar').style.width = '0%';
+  $('adviceCard').className = 'advice-card ok';
+  $('adviceIcon').textContent  = '✅';
+  $('adviceTitle').textContent = '状态良好';
+  $('adviceBody').textContent  = '驾驶状态正常，请继续保持专注。';
+}
+
+syncBtn();
+</script>
+</body>
+</html>
