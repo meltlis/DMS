@@ -35,8 +35,9 @@ build/
 
 # Data and Runs
 /datasets/
-/runs/
-*.pt
+# runs/ 包含训练好的模型，纳入版本控制
+/weights/*.pt
+yolo*.pt
 
 reports/
 *.report
