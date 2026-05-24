@@ -32,3 +32,11 @@ build/
 # Local env files
 .env
 .env.local
+
+# Data and Runs
+/datasets/
+/runs/
+*.pt
+
+reports/
+*.report

@@ -29,11 +29,11 @@ class DMSPipeline:
     def __init__(self, thresholds: Dict[str, float], runtime: Dict[str, Any]) -> None:
         self.thresholds = thresholds
         self.runtime = runtime
-        # Prefer 9-class behavior model; fall back to yolov11n.pt then synthetic
-        behavior_model = Path(__file__).resolve().parents[3] / "Drowsiness-Detection-based-on-yolo11-and-LSTM" / "runs" / "detect" / "train16" / "weights" / "best.pt"
+        # Prefer fine-tuned 4-class DMS model (phone/cigarette/seatbelt/face)
+        dms4class_model = Path(__file__).resolve().parents[1] / "runs" / "detect" / "dms4class" / "weights" / "best.pt"
         standard_model = Path(__file__).resolve().parents[1] / "weights" / "yolov11n.pt"
-        if behavior_model.exists():
-            chosen_model = str(behavior_model)
+        if dms4class_model.exists():
+            chosen_model = str(dms4class_model)
         elif standard_model.exists():
             chosen_model = str(standard_model)
         else:

@@ -1,3 +1,0 @@
-dataset,video,frames,elapsed_sec,avg_fps,fatigue_alert_frames,distraction_alert_frames,danger_alert_frames,total_alert_events
-inner_mirror,C:\Users\melt\code\ddd\ddd2\dataset\inner_mirror\vp1\run1b_2018-05-29-14-02-47.ids_1.mp4,60,0.5307185649871826,113.0542701129158,60,0,60,120
-DROZY,C:\Users\melt\code\ddd\ddd2\dataset\DROZY\DROZY\videos_i8\1-1.mp4,60,0.07258939743041992,826.5669935821219,60,0,60,120
