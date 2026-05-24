@@ -89,6 +89,15 @@ main{flex:1;display:flex;overflow:hidden}
 .btn-stop{background:var(--bg-alert);color:var(--c-alert);border-color:var(--bd-alert)}
 .btn-stop:hover{background:#fae0e0}
 .fps-badge{margin-left:auto;font-size:12px;color:var(--muted2);font-variant-numeric:tabular-nums}
+.mode-switch{display:flex;background:#f0f2f5;border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;margin-right:12px}
+.mode-btn{background:none;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--muted2);font-family:inherit;transition:all .15s}
+.mode-btn.active{background:var(--white);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:500}
+.night-indicator{display:none;font-size:11px;color:#7c6fcd;background:#f0eeff;border:1px solid #c9c0f0;padding:2px 8px;border-radius:4px;margin-left:8px}
+.alert-overlay{display:none;position:absolute;inset:0;z-index:20;background:rgba(160,0,0,0.45);border:3px solid #e03030;border-radius:inherit;align-items:center;justify-content:center;flex-direction:column;animation:alertPulse 1s ease-in-out infinite}
+.alert-overlay.show{display:flex}
+.alert-overlay-text{color:#fff;font-size:28px;font-weight:700;letter-spacing:.05em;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.alert-overlay-sub{color:#ffd0d0;font-size:14px;margin-top:6px;font-weight:400}
+@keyframes alertPulse{0%,100%{background:rgba(160,0,0,0.40);border-color:#e03030}50%{background:rgba(160,0,0,0.60);border-color:#ff5050}}
 
 .video-wrapper{
   flex:1;background:#0d0d0d;border-radius:var(--r);overflow:hidden;
@@ -212,6 +221,10 @@ main{flex:1;display:flex;overflow:hidden}
     <div class="h-sub">实时分析</div>
   </div>
   <div class="h-right">
+    <div class="mode-switch" id="modeSwitch" title="切换白天/夜间模式">
+      <button class="mode-btn active" data-cam="day">☀️ 白天</button>
+      <button class="mode-btn" data-cam="night">🌙 夜间红外</button>
+    </div>
     <div class="conn-dot" id="connDot"></div>
     <span id="connLabel">未连接</span>
   </div>
@@ -250,6 +263,10 @@ main{flex:1;display:flex;overflow:hidden}
         <span class="no-signal-text">暂无画面输入</span>
       </div>
       <div class="loading-bar" id="loadingBar"></div>
+      <div class="alert-overlay" id="alertOverlay">
+        <div class="alert-overlay-text">⚠ 疲劳驾驶警告</div>
+        <div class="alert-overlay-sub">请立即靠边休息</div>
+      </div>
     </div>
   </section>
 
@@ -331,6 +348,63 @@ const actionBtn = $('actionBtn'), stopBtn = $('stopBtn'), fileInput = $('fileInp
 const fpsBadge = $('fpsBadge'), connDot = $('connDot'), connLabel = $('connLabel');
 const loadingBar = $('loadingBar');
 const hiddenCvs = $('hiddenCanvas'), hiddenCtx = hiddenCvs.getContext('2d');
+
+// ── 疲劳警告音效 ─────────────────────────────────────────────────────────
+let _audioCtx = null;
+let _lastBeepTs = 0;
+const BEEP_INTERVAL_MS = 4000; // 最快每4秒一次，避免连续轰炸
+
+function playWarningBeep() {
+  const now = Date.now();
+  if (now - _lastBeepTs < BEEP_INTERVAL_MS) return;
+  _lastBeepTs = now;
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    // 双音叠加：440Hz + 554Hz，柔和的小三度音程
+    [440, 554].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + i * 0.01;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.02);   // 快速起音
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55); // 缓慢衰减
+      osc.start(t);
+      osc.stop(t + 0.6);
+    });
+  } catch(e) { /* 用户未交互时 AudioContext 受限，静默忽略 */ }
+}
+
+// ── 疲劳警告覆盖层 ───────────────────────────────────────────────────────
+function updateAlertOverlay(score) {
+  const overlay = $('alertOverlay');
+  if (score >= 70) {
+    overlay.classList.add('show');
+    playWarningBeep();
+  } else {
+    overlay.classList.remove('show');
+  }
+}
+
+// ── 白天/夜间模式切换 ─────────────────────────────────────────────────────
+let camMode = 'day';
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (running) return;
+    camMode = btn.dataset.cam;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    try {
+      await fetch('/mode', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ mode: camMode }) });
+      console.log('[mode] switched to', camMode);
+    } catch(e) { console.error('[mode]', e); }
+  });
+});
 
 // ── tab ──────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t => {
@@ -712,9 +786,13 @@ function updateUI(s) {
   $('adviceIcon').textContent  = adv.icon;
   $('adviceTitle').textContent = adv.title;
   $('adviceBody').textContent  = adv.body;
+
+  // 疲劳警告覆盖层 + 音效
+  updateAlertOverlay(score);
 }
 
 function resetUI() {
+  $('alertOverlay').classList.remove('show');
   $('statusCard').className = 'card status-card';
   $('statusMain').className = 'status-main';
   $('statusMain').textContent = '状态良好';

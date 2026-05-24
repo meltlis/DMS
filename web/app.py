@@ -21,6 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.pipeline import DMSPipeline, load_yaml
+from src.pipeline_night import NightPipeline
 
 PORT = 8000
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,8 +39,10 @@ app.add_middleware(
 )
 
 _pipeline: DMSPipeline | None = None
+_night_pipeline: NightPipeline | None = None
 _executor = ThreadPoolExecutor(max_workers=1)
 _pipeline_lock = threading.Lock()
+_current_mode = "day"  # "day" | "night"
 
 
 def _init_pipeline() -> DMSPipeline:
@@ -51,25 +54,44 @@ def _init_pipeline() -> DMSPipeline:
     return _pipeline
 
 
+def _init_night_pipeline() -> NightPipeline:
+    global _night_pipeline
+    if _night_pipeline is None:
+        runtime = load_yaml(ROOT / "configs" / "runtime.yaml")
+        _night_pipeline = NightPipeline(
+            window_seconds=10.0,
+            fps=int(runtime.get("fps", 30)),
+            device=str(runtime.get("device", "cpu")),
+        )
+    return _night_pipeline
+
+
 def _do_process(frame: np.ndarray, ts: float) -> dict:
     with _pipeline_lock:
+        if _current_mode == "night":
+            return _init_night_pipeline().process(frame, ts)
         return _init_pipeline().process(frame, ts)
 
 
 def _do_reset() -> None:
-    p = _init_pipeline()
-    try:
-        p.fatigue_fsm.reset()
-        p.fsm.current_track_id = None
-        p.fsm.reset_count = 0
-        p.fsm.history = []
-        p.temporal._windows.clear()
-        p.temporal._closed_since.clear()
-        p.danger._phone_first_ts = None
-        p.danger._start_ts = None
-        p.danger._seatbelt_seen = False
-    except Exception as exc:
-        print(f"[reset] {exc}")
+    with _pipeline_lock:
+        if _current_mode == "night":
+            if _night_pipeline is not None:
+                _night_pipeline.reset()
+            return
+        p = _init_pipeline()
+        try:
+            p.fatigue_fsm.reset()
+            p.fsm.current_track_id = None
+            p.fsm.reset_count = 0
+            p.fsm.history = []
+            p.temporal._windows.clear()
+            p.temporal._closed_since.clear()
+            p.danger._phone_first_ts = None
+            p.danger._start_ts = None
+            p.danger._seatbelt_seen = False
+        except Exception as exc:
+            print(f"[reset] {exc}")
 
 
 async def _aprocess(frame: np.ndarray, ts: float) -> dict:
@@ -153,6 +175,8 @@ def _serialize(state: dict) -> dict:
         "continuous_closed": _safe_f(d.get("continuous_closed")),
         "lstm_score":        _safe_f(d.get("lstm_score")),
         "lstm_pred":         d.get("lstm_pred"),
+        "ir_drowsy_prob":    _safe_f(d.get("ir_drowsy_prob")),
+        "ir_perclos":        _safe_f(d.get("ir_perclos")),
     }
 
 
@@ -163,6 +187,26 @@ async def _startup() -> None:
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(_executor, _init_pipeline)
     print(f"\n  DMS Monitor  →  http://localhost:{PORT}\n")
+
+
+@app.post("/mode")
+async def set_mode(body: dict):
+    global _current_mode
+    mode = body.get("mode", "day")
+    if mode not in ("day", "night"):
+        return JSONResponse({"error": "mode must be 'day' or 'night'"}, status_code=400)
+    _current_mode = mode
+    _do_reset()
+    if mode == "night":
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(_executor, _init_night_pipeline)
+    print(f"[mode] switched to {mode}")
+    return {"mode": _current_mode}
+
+
+@app.get("/mode")
+async def get_mode():
+    return {"mode": _current_mode}
 
 
 @app.get("/", response_class=HTMLResponse)
