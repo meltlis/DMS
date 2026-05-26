@@ -14,6 +14,8 @@ html,body{height:100%;overflow:hidden}
 :root{
   --white:#ffffff;
   --surface:#f8f7f5;
+  --panel:#ffffff;
+  --panel-soft:rgba(255,255,255,.7);
   --border:#e5e2dc;
   --border2:#d4d0ca;
   --text:#1a1916;
@@ -27,14 +29,43 @@ html,body{height:100%;overflow:hidden}
   --bg-ok:#edf7f2;
   --bg-warn:#fdf6e3;
   --bg-alert:#fdf0f0;
+  --bg-alert-pulse:#fbe6e6;
   --bd-ok:#b7dfca;
   --bd-warn:#f0d899;
   --bd-alert:#f5bdbd;
   --navy:#1c2f4a;
+  --video-bg:#0d0d0d;
+  --no-signal:#444;
+  --no-signal-muted:#555;
   --r:10px;
 }
 
-body{font-family:var(--sans);background:var(--white);color:var(--text);display:flex;flex-direction:column}
+body{font-family:var(--sans);background:var(--white);color:var(--text);display:flex;flex-direction:column;transition:background .25s,color .25s}
+body.night-theme{
+  --white:#0b1220;
+  --surface:#111b2d;
+  --panel:#162235;
+  --panel-soft:rgba(22,34,53,.92);
+  --border:#24344c;
+  --border2:#35506f;
+  --text:#e8eef9;
+  --muted:#a7b6ca;
+  --muted2:#7c8fa8;
+  --c-ok:#59d98e;
+  --c-warn:#ffca63;
+  --c-alert:#ff7b8a;
+  --bg-ok:#11271f;
+  --bg-warn:#332713;
+  --bg-alert:#34151d;
+  --bg-alert-pulse:#47202b;
+  --bd-ok:#244837;
+  --bd-warn:#6d5526;
+  --bd-alert:#70303b;
+  --navy:#8cbcff;
+  --video-bg:#04080f;
+  --no-signal:#8fa3bf;
+  --no-signal-muted:#6f86a6;
+}
 
 /* ── header ── */
 header{
@@ -44,16 +75,18 @@ header{
   gap:14px;
   padding:14px 28px;
   border-bottom:1px solid var(--border);
+  background:var(--white);
+  transition:background .25s,border-color .25s;
 }
 .h-title{
-  font-family:var(--serif);
+  font-family:var(--sans);
   font-weight:600;
   font-size:22px;
   letter-spacing:-.01em;
   color:var(--navy);
   line-height:1;
 }
-.h-title em{font-style:italic;font-weight:400}
+.h-title em{font-style:normal;font-weight:600}
 .h-sub{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:3px}
 .h-right{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
 .conn-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:background .3s;flex-shrink:0}
@@ -70,13 +103,13 @@ main{flex:1;display:flex;overflow:hidden}
   border-right:1px solid var(--border);overflow:hidden;
 }
 .source-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
-.tab-group{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
+.tab-group{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;transition:background .25s,border-color .25s}
 .tab{
   padding:5px 14px;border:none;background:transparent;border-radius:6px;
   font-family:var(--sans);font-size:13px;font-weight:500;color:var(--muted);
   cursor:pointer;transition:all .15s;white-space:nowrap;
 }
-.tab.active{background:var(--white);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tab.active{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .tab:hover:not(.active){color:var(--text)}
 .btn{
   padding:6px 16px;border-radius:8px;border:1px solid transparent;
@@ -84,42 +117,42 @@ main{flex:1;display:flex;overflow:hidden}
   transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;
 }
 .btn-primary{background:var(--navy);color:#fff;border-color:var(--navy)}
-.btn-primary:hover{background:#243858}
+.btn-primary:hover{filter:brightness(1.08)}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed}
 .btn-stop{background:var(--bg-alert);color:var(--c-alert);border-color:var(--bd-alert)}
-.btn-stop:hover{background:#fae0e0}
+.btn-stop:hover{filter:brightness(1.06)}
 .fps-badge{margin-left:auto;font-size:12px;color:var(--muted2);font-variant-numeric:tabular-nums}
-.mode-switch{display:flex;background:#f0f2f5;border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;margin-right:12px}
+.mode-switch{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;margin-right:12px;transition:background .25s,border-color .25s}
 .mode-btn{background:none;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--muted2);font-family:inherit;transition:all .15s}
-.mode-btn.active{background:var(--white);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:500}
-.night-indicator{display:none;font-size:11px;color:#7c6fcd;background:#f0eeff;border:1px solid #c9c0f0;padding:2px 8px;border-radius:4px;margin-left:8px}
-.alert-overlay{display:none;position:absolute;inset:0;z-index:20;background:rgba(160,0,0,0.45);border:3px solid #e03030;border-radius:inherit;align-items:center;justify-content:center;flex-direction:column;animation:alertPulse 1s ease-in-out infinite}
-.alert-overlay.show{display:flex}
-.alert-overlay-text{color:#fff;font-size:28px;font-weight:700;letter-spacing:.05em;text-shadow:0 2px 8px rgba(0,0,0,.5)}
-.alert-overlay-sub{color:#ffd0d0;font-size:14px;margin-top:6px;font-weight:400}
-@keyframes alertPulse{0%,100%{background:rgba(160,0,0,0.40);border-color:#e03030}50%{background:rgba(160,0,0,0.60);border-color:#ff5050}}
+.mode-btn.active{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.16);font-weight:500}
 
 .video-wrapper{
-  flex:1;background:#0d0d0d;border-radius:var(--r);overflow:hidden;
+  flex:1;background:var(--video-bg);border-radius:var(--r);overflow:hidden;
   position:relative;min-height:180px;
+  border:1px solid var(--border);
+  transition:background .25s,border-color .25s;
 }
 /* 视频元素保持正常尺寸以确保浏览器正常解码帧 */
 #videoEl{
   position:absolute;top:0;left:0;width:100%;height:100%;
-  object-fit:contain;background:#0d0d0d;
+  object-fit:contain;background:var(--video-bg);
 }
 /* 服务器标注帧叠加在视频上方 */
 #frameEl{
   position:absolute;top:0;left:0;width:100%;height:100%;
   object-fit:contain;display:none;z-index:2;
 }
+#overlayCanvas{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  display:none;z-index:3;pointer-events:none;
+}
 .no-signal{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   display:flex;flex-direction:column;align-items:center;
-  gap:12px;color:#444;user-select:none;z-index:10;
+  gap:12px;color:var(--no-signal);user-select:none;z-index:10;
 }
 .no-signal svg{opacity:.3}
-.no-signal-text{font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#555}
+.no-signal-text{font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--no-signal-muted)}
 .loading-bar{
   position:absolute;bottom:0;left:0;right:0;height:2px;
   background:linear-gradient(90deg,transparent,var(--navy),transparent);
@@ -136,7 +169,7 @@ main{flex:1;display:flex;overflow:hidden}
 .metrics-section::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
 /* ── card ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;transition:background .25s,border-color .25s}
 .card-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:10px}
 
 /* ── 主状态卡 ── */
@@ -147,7 +180,7 @@ main{flex:1;display:flex;overflow:hidden}
 .status-card.ok  {border-left-color:var(--c-ok);  background:var(--bg-ok);  border-color:var(--bd-ok)}
 .status-card.warn{border-left-color:var(--c-warn);background:var(--bg-warn);border-color:var(--bd-warn)}
 .status-card.alrt{border-left-color:var(--c-alert);background:var(--bg-alert);border-color:var(--bd-alert);animation:pulse .9s infinite alternate}
-@keyframes pulse{from{background:var(--bg-alert)}to{background:#fbe6e6}}
+@keyframes pulse{from{background:var(--bg-alert)}to{background:var(--bg-alert-pulse)}}
 
 .status-main{font-size:26px;font-weight:600;letter-spacing:.02em;color:var(--muted);transition:color .3s}
 .status-main.ok  {color:var(--c-ok)}
@@ -175,7 +208,7 @@ main{flex:1;display:flex;overflow:hidden}
   display:flex;align-items:center;gap:9px;
   font-size:13px;color:var(--text);
   padding:8px 10px;border-radius:8px;
-  background:rgba(255,255,255,.7);border:1px solid var(--border);
+  background:var(--panel-soft);border:1px solid var(--border);
 }
 .symptom-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .symptom-dot.warn{background:var(--c-warn)}
@@ -185,8 +218,9 @@ main{flex:1;display:flex;overflow:hidden}
 /* ── 眼睛&注意力 ── */
 .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .mini-card{
-  background:var(--white);border:1px solid var(--border);
+  background:var(--panel);border:1px solid var(--border);
   border-radius:8px;padding:10px 12px;
+  transition:background .25s,border-color .25s;
 }
 .mini-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2);margin-bottom:6px}
 .mini-val{font-size:14px;font-weight:500;color:var(--text)}
@@ -197,23 +231,88 @@ main{flex:1;display:flex;overflow:hidden}
 .eye-bar-track{width:100%;height:4px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden}
 .eye-bar-fill{height:100%;border-radius:2px;transition:width .25s,background .25s}
 
+/* ── 行为依据 ── */
+.evidence-summary{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;
+}
+.evidence-chip{
+  min-width:0;padding:7px 8px;border-radius:8px;
+  background:var(--panel);border:1px solid var(--border);
+}
+.evidence-chip span{
+  display:block;font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--muted2);margin-bottom:3px;
+}
+.evidence-chip strong{
+  display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;font-weight:600;color:var(--text);
+}
+.evidence-list{display:flex;flex-direction:column;gap:7px}
+.evidence-row{
+  padding:8px 9px;border-radius:8px;background:var(--panel-soft);
+  border:1px solid var(--border);
+}
+.evidence-row.active{border-color:var(--bd-warn);background:var(--bg-warn)}
+.evidence-row.ready{border-color:var(--bd-ok);background:var(--bg-ok)}
+.evidence-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.evidence-name{font-size:12px;font-weight:600;color:var(--text)}
+.evidence-value{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.evidence-detail{font-size:11px;color:var(--muted);line-height:1.35;margin-top:5px}
+.evidence-meter{height:5px;background:var(--border);border-radius:4px;overflow:hidden}
+.evidence-fill{height:100%;width:0%;background:var(--muted2);transition:width .25s,background .25s}
+.evidence-row.active .evidence-fill{background:var(--c-warn)}
+.evidence-row.ready .evidence-fill{background:var(--c-ok)}
+
 /* ── 建议 ── */
 .advice-card{
   border:1px solid var(--border);border-radius:var(--r);
   padding:14px 16px;display:flex;align-items:flex-start;gap:10px;
   transition:background .4s,border-color .4s;
 }
-.advice-card.ok  {background:#edf7f2;border-color:var(--bd-ok)}
-.advice-card.warn{background:#fdf6e3;border-color:var(--bd-warn)}
-.advice-card.alrt{background:#fdf0f0;border-color:var(--bd-alert)}
+.advice-card.ok  {background:var(--bg-ok);border-color:var(--bd-ok)}
+.advice-card.warn{background:var(--bg-warn);border-color:var(--bd-warn)}
+.advice-card.alrt{background:var(--bg-alert);border-color:var(--bd-alert)}
 .advice-icon{font-size:20px;flex-shrink:0;line-height:1.4}
 .advice-text{font-size:13px;line-height:1.65;color:var(--text)}
 .advice-text strong{display:block;font-weight:600;font-size:13px;margin-bottom:2px}
 
 #fileInput{display:none}
+.fatigue-alert{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at center, rgba(255,110,110,.30) 0%, rgba(176,28,34,.48) 45%, rgba(90,0,0,.78) 100%);
+  opacity:0;pointer-events:none;z-index:9999;
+  transition:opacity .2s ease;
+}
+.fatigue-alert.active{opacity:1;animation:fatigueFlash .9s ease-in-out infinite alternate}
+.fatigue-alert.active.warn{animation:distractionFlash 1.1s ease-in-out infinite alternate}
+.fatigue-alert.active.alrt{animation:fatigueFlash .9s ease-in-out infinite alternate}
+.fatigue-alert-card{
+  min-width:280px;max-width:440px;padding:24px 28px;border-radius:18px;
+  border:1px solid rgba(255,255,255,.28);
+  background:rgba(70,0,0,.55);backdrop-filter:blur(6px);
+  box-shadow:0 16px 50px rgba(0,0,0,.35);text-align:center;color:#fff;
+}
+.fatigue-alert-card.warn{background:rgba(95,60,0,.62)}
+.fatigue-alert-card.alrt{background:rgba(70,0,0,.58)}
+.fatigue-alert-title{font-size:30px;font-weight:700;letter-spacing:.08em}
+.fatigue-alert-sub{margin-top:10px;font-size:15px;line-height:1.6;color:rgba(255,255,255,.88)}
+@keyframes fatigueFlash{
+  from{background:radial-gradient(circle at center, rgba(255,110,110,.18) 0%, rgba(176,28,34,.40) 42%, rgba(90,0,0,.70) 100%)}
+  to{background:radial-gradient(circle at center, rgba(255,170,170,.35) 0%, rgba(220,35,45,.62) 42%, rgba(110,0,0,.88) 100%)}
+}
+@keyframes distractionFlash{
+  from{background:radial-gradient(circle at center, rgba(255,196,77,.16) 0%, rgba(154,95,0,.42) 42%, rgba(70,40,0,.70) 100%)}
+  to{background:radial-gradient(circle at center, rgba(255,218,120,.34) 0%, rgba(184,115,0,.58) 42%, rgba(92,50,0,.82) 100%)}
+}
 </style>
 </head>
 <body>
+<div class="fatigue-alert" id="fatigueAlert">
+  <div class="fatigue-alert-card" id="fatigueAlertCard">
+    <div class="fatigue-alert-title" id="fatigueAlertTitle">疲劳预警</div>
+    <div class="fatigue-alert-sub" id="fatigueAlertSub">疲劳程度过高，请立即减速并尽快停车休息</div>
+  </div>
+</div>
 
 <header>
   <div>
@@ -254,8 +353,9 @@ main{flex:1;display:flex;overflow:hidden}
     <div class="video-wrapper">
       <video id="videoEl" muted autoplay playsinline></video>
       <img id="frameEl" alt="监测画面">
+      <canvas id="overlayCanvas"></canvas>
       <div class="no-signal" id="noSignal">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.2">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
           <rect x="2" y="7" width="20" height="14" rx="2"/>
           <path d="M16 3l-4 4-4-4"/>
           <circle cx="12" cy="14" r="3"/>
@@ -263,10 +363,6 @@ main{flex:1;display:flex;overflow:hidden}
         <span class="no-signal-text">暂无画面输入</span>
       </div>
       <div class="loading-bar" id="loadingBar"></div>
-      <div class="alert-overlay" id="alertOverlay">
-        <div class="alert-overlay-text">⚠ 疲劳驾驶警告</div>
-        <div class="alert-overlay-sub">请立即靠边休息</div>
-      </div>
     </div>
   </section>
 
@@ -293,11 +389,11 @@ main{flex:1;display:flex;overflow:hidden}
       <div class="score-desc" id="scoreDesc">等待检测数据…</div>
     </div>
 
-    <!-- 疲劳信号 -->
+    <!-- 风险信号 -->
     <div class="card">
-      <div class="card-label">检测到的疲劳信号</div>
+      <div class="card-label">检测到的风险信号</div>
       <div class="symptom-list" id="symptomList">
-        <span class="no-symptom">暂未检测到疲劳信号</span>
+        <span class="no-symptom">暂未检测到疲劳或分心信号</span>
       </div>
     </div>
 
@@ -313,6 +409,24 @@ main{flex:1;display:flex;overflow:hidden}
       <div class="mini-card">
         <div class="mini-label">注意力方向</div>
         <div class="mini-val" id="attnState">—</div>
+      </div>
+    </div>
+
+    <!-- 行为依据 -->
+    <div class="card">
+      <div class="card-label">行为判定依据</div>
+      <div class="evidence-summary">
+        <div class="evidence-chip">
+          <span>原始状态</span>
+          <strong id="rawDistraction">—</strong>
+        </div>
+        <div class="evidence-chip">
+          <span>稳定状态</span>
+          <strong id="stableDistraction">—</strong>
+        </div>
+      </div>
+      <div class="evidence-list" id="behaviorEvidence">
+        <span class="no-symptom">等待检测数据…</span>
       </div>
     </div>
 
@@ -340,71 +454,365 @@ let ws = null, stream = null, mode = 'camera';
 let running = false, busy = false;
 let fpsCount = 0, lastFpsTs = 0;
 let lastSendTs = 0;
-const TARGET_FPS = 15; // 限制发帧频率，匹配后端处理能力
+let lastOverlayState = null;
+let lastProcessedFrame = { w: 0, h: 0 };
+let attnModel = { emaYaw: null, level: 'ok' };
+let headPoseModel = { emaPitch: null };
+let fatigueAlarmActive = false;
+let fatigueAudioCtx = null;
+let lastAlarmBeepTs = 0;
+let activeAlarmKey = '';
+const FRAME_RATE_LIMIT_ENABLED = true;
+const TARGET_FPS = 8; // 开启网页端限频：少发帧，给后端更稳定的检测时间
+const CAMERA_MAX_W = 640;
+const CAMERA_MAX_H = 480;
+const CAMERA_JPEG_QUALITY = 0.72; // 小目标检测需要保留更多细节
+const FATIGUE_ALARM_SCORE = 70;
+const FATIGUE_BEEP_INTERVAL_MS = 1200;
 
 const $ = id => document.getElementById(id);
 const videoEl = $('videoEl'), frameEl = $('frameEl'), noSignal = $('noSignal');
+const overlayCvs = $('overlayCanvas'), overlayCtx = overlayCvs.getContext('2d');
 const actionBtn = $('actionBtn'), stopBtn = $('stopBtn'), fileInput = $('fileInput');
 const fpsBadge = $('fpsBadge'), connDot = $('connDot'), connLabel = $('connLabel');
 const loadingBar = $('loadingBar');
 const hiddenCvs = $('hiddenCanvas'), hiddenCtx = hiddenCvs.getContext('2d');
+const fatigueAlert = $('fatigueAlert');
+const fatigueAlertCard = $('fatigueAlertCard');
+const fatigueAlertTitle = $('fatigueAlertTitle');
+const fatigueAlertSub = $('fatigueAlertSub');
 
-// ── 疲劳警告音效 ─────────────────────────────────────────────────────────
-let _audioCtx = null;
-let _lastBeepTs = 0;
-const BEEP_INTERVAL_MS = 4000; // 最快每4秒一次，避免连续轰炸
-
-function playWarningBeep() {
-  const now = Date.now();
-  if (now - _lastBeepTs < BEEP_INTERVAL_MS) return;
-  _lastBeepTs = now;
-  try {
-    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = _audioCtx;
-    // 双音叠加：440Hz + 554Hz，柔和的小三度音程
-    [440, 554].forEach((freq, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      const t = ctx.currentTime + i * 0.01;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.18, t + 0.02);   // 快速起音
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55); // 缓慢衰减
-      osc.start(t);
-      osc.stop(t + 0.6);
-    });
-  } catch(e) { /* 用户未交互时 AudioContext 受限，静默忽略 */ }
+function ensureAudioReady() {
+  if (!window.AudioContext && !window.webkitAudioContext) return null;
+  if (!fatigueAudioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    fatigueAudioCtx = new Ctx();
+  }
+  if (fatigueAudioCtx.state === 'suspended') fatigueAudioCtx.resume().catch(() => {});
+  return fatigueAudioCtx;
 }
 
-// ── 疲劳警告覆盖层 ───────────────────────────────────────────────────────
-function updateAlertOverlay(score) {
-  const overlay = $('alertOverlay');
-  if (score >= 70) {
-    overlay.classList.add('show');
-    playWarningBeep();
-  } else {
-    overlay.classList.remove('show');
+function playAlarmBeep() {
+  const ctx = ensureAudioReady();
+  if (!ctx || ctx.state !== 'running') return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(960, now);
+  osc.frequency.exponentialRampToValueAtTime(680, now + 0.22);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.16, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.3);
+}
+
+const DISTRACTION_ALARMS = {
+  PHONE_CALL: {
+    level: 'alrt',
+    title: '分心预警：打电话',
+    sub: '检测到驾驶员正在接打电话，请立即结束通话并保持视线前方',
+  },
+  PHONE_USE: {
+    level: 'alrt',
+    title: '分心预警：玩手机',
+    sub: '检测到驾驶员正在使用手机，请立即放下手机并专注驾驶',
+  },
+  PHONE: {
+    level: 'alrt',
+    title: '分心预警：玩手机',
+    sub: '检测到驾驶员手持手机，请立即放下手机并专注驾驶',
+  },
+  SUSPECTED_PHONE_USE: {
+    level: 'warn',
+    title: '分心预警：疑似玩手机',
+    sub: '检测到持续低头或疑似手机操作，请确认驾驶员注意力状态',
+  },
+  DRINK: {
+    level: 'warn',
+    title: '分心预警：喝水',
+    sub: '检测到驾驶员正在喝水，请尽快完成动作并恢复双手控制',
+  },
+  SMOKE: {
+    level: 'warn',
+    title: '分心预警：抽烟',
+    sub: '检测到驾驶员手持香烟或吸烟行为，请停止分心动作并保持专注',
+  },
+  HEAD_DOWN: {
+    level: 'warn',
+    title: '分心预警：低头',
+    sub: '检测到驾驶员持续低头，请立即恢复视线前方',
+  },
+  LOOK_AROUND: {
+    level: 'warn',
+    title: '分心预警：左顾右盼',
+    sub: '检测到驾驶员持续观察侧方，请尽快恢复视线前方',
+  },
+  GAZE_AWAY: {
+    level: 'warn',
+    title: '分心预警：视线偏离',
+    sub: '检测到驾驶员视线持续偏离前方，请保持注意力集中',
+  },
+};
+
+const DISTRACTION_ADVICE = {
+  PHONE_CALL: { icon:'!', title:'请停止打电话', body:'接打电话会明显占用驾驶注意力，请尽快结束通话并恢复安全驾驶姿态。' },
+  PHONE_USE:  { icon:'!', title:'请放下手机',   body:'检测到手机使用行为，请立即放下手机，保持视线前方和双手控制。' },
+  PHONE:      { icon:'!', title:'请放下手机',   body:'检测到手持手机，请立即停止操作手机并专注前方道路。' },
+  SUSPECTED_PHONE_USE: { icon:'!', title:'疑似手机分心', body:'检测到持续低头或疑似手机操作，请确认驾驶员注意力并恢复前视。' },
+  DRINK:      { icon:'!', title:'喝水分心提示', body:'检测到喝水动作，请尽快完成并恢复双手控制，避免长时间离开驾驶姿态。' },
+  SMOKE:      { icon:'!', title:'抽烟分心提示', body:'检测到吸烟或手持香烟，请停止分心动作并保持驾驶注意力。' },
+  HEAD_DOWN:  { icon:'!', title:'低头分心提示', body:'检测到持续低头行为，请抬头看向前方道路并保持安全驾驶姿态。' },
+  LOOK_AROUND:{ icon:'!', title:'左顾右盼提示', body:'检测到持续左顾右盼行为，请尽快恢复视线前方并确认道路环境。' },
+  GAZE_AWAY:  { icon:'!', title:'视线偏离提示', body:'检测到视线持续偏离前方，请保持注意力集中。' },
+};
+
+function hasDistractionState(s) {
+  return !!(s && s.distraction && s.distraction !== 'NORMAL');
+}
+
+function distractionBoxLabel(distraction) {
+  const labels = {
+    PHONE_CALL: '打电话',
+    PHONE_USE: '玩手机',
+    PHONE: '玩手机',
+    SUSPECTED_PHONE_USE: '疑似玩手机',
+    DRINK: '喝水',
+    SMOKE: '抽烟',
+    HEAD_DOWN: '低头',
+    LOOK_AROUND: '左顾右盼',
+    GAZE_AWAY: '视线偏离',
+  };
+  return labels[distraction] || distraction;
+}
+
+function escHtml(v) {
+  return String(v == null ? '—' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function num(v, digits = 1) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(digits) : '—';
+}
+
+function sec(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? `${n.toFixed(1)}s` : '—';
+}
+
+function deg(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? `${n.toFixed(1)}°` : '—';
+}
+
+function pct(value, target) {
+  const v = Number(value) || 0;
+  const t = Math.max(Number(target) || 0, 0.001);
+  return Math.max(0, Math.min(100, Math.round(v / t * 100)));
+}
+
+function boxesCount(s, keys) {
+  return keys.reduce((n, key) => n + (Array.isArray(s[key]) ? s[key].length : 0), 0);
+}
+
+function evidenceRow({name, value, detail, progress, active, ready}) {
+  const cls = ready ? 'ready' : active ? 'active' : '';
+  return `
+    <div class="evidence-row ${cls}">
+      <div class="evidence-head">
+        <div class="evidence-name">${escHtml(name)}</div>
+        <div class="evidence-value">${escHtml(value)}</div>
+      </div>
+      <div class="evidence-meter"><div class="evidence-fill" style="width:${Math.max(0, Math.min(100, progress || 0))}%"></div></div>
+      <div class="evidence-detail">${escHtml(detail)}</div>
+    </div>
+  `;
+}
+
+function updateBehaviorEvidence(s) {
+  const th = s.behavior_thresholds || {};
+  const raw = s.behavior_raw || {};
+  const timers = s.behavior_timers || {};
+  const alerts = new Set(Array.isArray(s.behavior_alerts) ? s.behavior_alerts : []);
+  const rawState = s.raw_distraction || 'NORMAL';
+  const stableState = s.stable_distraction || s.distraction || 'NORMAL';
+
+  $('rawDistraction').textContent = distractionBoxLabel(rawState);
+  $('stableDistraction').textContent = distractionBoxLabel(stableState);
+
+  const headPitchDeg = Number(th.head_down_pitch_deg ?? -18);
+  const headAbsDeg = Math.abs(headPitchDeg);
+  const headNeed = Number(th.head_down_seconds ?? 1.5);
+  const headMode = th.head_down_pitch_mode || 'negative';
+  const headDur = Number(s.head_down_duration ?? 0);
+  const headNegDur = Number(s.head_down_negative_duration ?? 0);
+  const headPosDur = Number(s.head_down_positive_duration ?? 0);
+  let headCond = headMode === 'both'
+    ? `pitch <= ${headPitchDeg.toFixed(0)}° 或 pitch >= ${headAbsDeg.toFixed(0)}°`
+    : headMode === 'positive'
+      ? `pitch >= ${headAbsDeg.toFixed(0)}°`
+      : `pitch <= ${headPitchDeg.toFixed(0)}°`;
+
+  headCond = headMode === 'both'
+    ? `pitch_delta <= ${headPitchDeg.toFixed(0)}deg or pitch_delta >= ${headAbsDeg.toFixed(0)}deg`
+    : headMode === 'positive'
+      ? `pitch_delta >= ${headAbsDeg.toFixed(0)}deg`
+      : `pitch_delta <= ${headPitchDeg.toFixed(0)}deg`;
+
+  const lookNeed = Number(th.look_around_seconds ?? 2.0);
+  const yawDeg = Number(th.yaw_threshold_deg ?? 30);
+  const lookLeft = Number(s.look_left_duration ?? 0);
+  const lookRight = Number(s.look_right_duration ?? 0);
+  const lookDur = Math.max(lookLeft, lookRight);
+
+  const phoneNeed = Number(th.phone_duration_seconds ?? 2.0);
+  const phoneTimer = Math.max(Number(timers.PHONE_CALL ?? 0), Number(timers.PHONE_USE ?? 0), Number(timers.PHONE ?? 0));
+  const phoneReady = alerts.has('PHONE_CALL') || alerts.has('PHONE_USE') || alerts.has('PHONE');
+  const phoneRaw = !!(raw.phone || raw.phone_call || raw.phone_use);
+
+  const drinkNeed = Number(th.drink_duration_seconds ?? 1.2);
+  const drinkTimer = Number(timers.DRINK ?? 0);
+  const drinkReady = alerts.has('DRINK');
+
+  const smokeNeed = Number(th.smoke_duration_seconds ?? 1.5);
+  const smokeTimer = Number(timers.SMOKE ?? 0);
+  const smokeReady = alerts.has('SMOKE');
+
+  const rows = [
+    evidenceRow({
+      name: '低头',
+      value: `pitch_delta ${deg(s.pitch)} / ${sec(headDur)}`,
+      detail: `条件 ${headCond}，需持续 ${sec(headNeed)}；原始 pitch ${deg(s.raw_pitch)}，基准 ${s.pitch_calibrated ? deg(s.pitch_baseline) : '临时'}；负向 ${sec(headNegDur)}，正向 ${sec(headPosDur)}；位姿${s.pose_valid ? '有效' : '无效'}${s.pose_held ? '，保持中' : ''}${s.posture_suppressed ? '；物体行为/哈欠中，暂停姿态告警' : ''}`,
+      progress: pct(headDur, headNeed),
+      active: rawState === 'HEAD_DOWN',
+      ready: stableState === 'HEAD_DOWN',
+    }),
+    evidenceRow({
+      name: '左顾右盼',
+      value: `yaw ${deg(s.yaw)} / ${sec(lookDur)}`,
+      detail: `条件 |yaw_delta| >= ${yawDeg.toFixed(0)}°，需持续 ${sec(lookNeed)}；左 ${sec(lookLeft)}，右 ${sec(lookRight)}；原始 yaw ${deg(s.raw_yaw)}，基准 ${s.yaw_calibrated ? deg(s.yaw_baseline) : '临时'}；位姿${s.pose_valid ? '有效' : '无效'}${s.yaw_suppressed_by_yawn ? '；哈欠中，暂停 yaw 计时' : ''}${s.posture_suppressed ? '；物体行为/哈欠中，暂停姿态告警' : ''}`,
+      progress: pct(lookDur, lookNeed),
+      active: rawState === 'LOOK_AROUND' || rawState === 'GAZE_AWAY',
+      ready: stableState === 'LOOK_AROUND' || stableState === 'GAZE_AWAY',
+    }),
+    evidenceRow({
+      name: '手机/打电话',
+      value: `${phoneRaw ? '触发中' : '未触发'} / ${sec(phoneTimer)}`,
+      detail: `手机框 ${boxesCount(s, ['phone_boxes'])}；近耳=${raw.phone_call ? '是' : '否'}，玩手机=${raw.phone_use ? '是' : '否'}，需 ${sec(phoneNeed)}`,
+      progress: pct(phoneTimer, phoneNeed),
+      active: phoneRaw,
+      ready: phoneReady,
+    }),
+    evidenceRow({
+      name: '喝水',
+      value: `${raw.drink ? '触发中' : '未触发'} / ${sec(drinkTimer)}`,
+      detail: `杯/瓶框 ${boxesCount(s, ['bottle_boxes', 'cup_boxes', 'drink_boxes'])}；靠近嘴部需持续 ${sec(drinkNeed)}`,
+      progress: pct(drinkTimer, drinkNeed),
+      active: !!raw.drink,
+      ready: drinkReady,
+    }),
+    evidenceRow({
+      name: '抽烟',
+      value: `${raw.smoke ? '触发中' : '未触发'} / ${sec(smokeTimer)}`,
+      detail: `香烟/烟雾框 ${boxesCount(s, ['cigarette_boxes', 'smoke_boxes'])}；靠近嘴部需持续 ${sec(smokeNeed)}`,
+      progress: pct(smokeTimer, smokeNeed),
+      active: !!raw.smoke,
+      ready: smokeReady,
+    }),
+  ];
+
+  $('behaviorEvidence').innerHTML = rows.join('');
+}
+
+function currentAlarmMeta(s) {
+  if (!s) return null;
+  if (s.fatigue === 'ALERT') {
+    return {
+      key: 'FATIGUE_ALERT',
+      level: 'alrt',
+      title: '疲劳预警',
+      sub: '疲劳程度过高，请立即减速并尽快停车休息',
+    };
+  }
+  const meta = DISTRACTION_ALARMS[s.distraction];
+  return meta ? { key: 'DISTRACTION_' + s.distraction, ...meta } : null;
+}
+
+function syncSafetyAlarm(s) {
+  const meta = currentAlarmMeta(s);
+  if (!meta) {
+    fatigueAlarmActive = false;
+    activeAlarmKey = '';
+    fatigueAlert.classList.remove('active', 'warn', 'alrt');
+    fatigueAlertCard.classList.remove('warn', 'alrt');
+    return;
+  }
+
+  fatigueAlarmActive = true;
+  if (activeAlarmKey !== meta.key) {
+    activeAlarmKey = meta.key;
+    lastAlarmBeepTs = 0;
+  }
+  fatigueAlertTitle.textContent = meta.title;
+  fatigueAlertSub.textContent = meta.sub;
+  fatigueAlert.className = 'fatigue-alert active ' + meta.level;
+  fatigueAlertCard.className = 'fatigue-alert-card ' + meta.level;
+
+  const now = performance.now();
+  const interval = meta.level === 'alrt' ? FATIGUE_BEEP_INTERVAL_MS : 1800;
+  if (now - lastAlarmBeepTs >= interval) {
+    lastAlarmBeepTs = now;
+    playAlarmBeep();
   }
 }
 
+['pointerdown', 'keydown', 'touchstart'].forEach(evt => {
+  window.addEventListener(evt, ensureAudioReady, { passive: true });
+});
+
 // ── 白天/夜间模式切换 ─────────────────────────────────────────────────────
 let camMode = 'day';
+
+async function syncCameraModeUI(modeName) {
+  camMode = modeName === 'night' ? 'night' : 'day';
+  document.body.classList.toggle('night-theme', camMode === 'night');
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cam === camMode);
+  });
+  document.querySelector('.h-sub').textContent = camMode === 'night' ? '夜间主题' : '实时分析';
+}
+
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
     if (running) return;
-    camMode = btn.dataset.cam;
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    const nextMode = btn.dataset.cam;
     try {
-      await fetch('/mode', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ mode: camMode }) });
-      console.log('[mode] switched to', camMode);
-    } catch(e) { console.error('[mode]', e); }
+      const resp = await fetch(API_URL + '/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: nextMode }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || '模式切换失败');
+      syncCameraModeUI(data.mode);
+    } catch (err) {
+      alert('模式切换失败：' + err.message);
+    }
   });
 });
+
+fetch(API_URL + '/mode')
+  .then(resp => resp.json())
+  .then(data => syncCameraModeUI(data.mode))
+  .catch(() => syncCameraModeUI('day'));
 
 // ── tab ──────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t => {
@@ -446,7 +854,13 @@ function connectWS() {
   ws.onclose   = () => { setConn('', '未连接'); busy = false; if (running) setTimeout(connectWS, 1500); };
   ws.onerror   = () => setConn('err', '连接异常');
   ws.onmessage = e => {
-    try { const d = JSON.parse(e.data); showFrame(d.frame); updateUI(d.state); fpsCount++; } catch(_){}
+    try {
+      const d = JSON.parse(e.data);
+      if (mode === 'camera') showCameraOutput(d.state);
+      else if (d.frame) showFrame(d.frame, d.state);
+      updateUI(d.state);
+      fpsCount++;
+    } catch(_){}
     busy = false;
   };
 }
@@ -466,6 +880,9 @@ async function startCamera() {
     await videoEl.play();
   } catch(err) { alert('摄像头错误：' + err.message); actionBtn.disabled=false; loadingBar.style.display='none'; return; }
   await fetch(API_URL+'/reset',{method:'POST'}).catch(()=>{});
+  videoEl.style.display = 'block';
+  frameEl.style.display = 'none';
+  clearOverlay();
   connectWS(); go();
 }
 
@@ -496,6 +913,8 @@ async function startVideo(file) {
   actionBtn.disabled = true;
   loadingBar.style.display = 'block';
   noSignal.style.display = 'none';
+  videoEl.style.display = 'none';
+  clearOverlay();
   frameEl.style.display = 'none';
   fpsBadge.textContent = '上传中 0%';
 
@@ -545,7 +964,7 @@ async function startVideo(file) {
         stopAll();
         return;
       }
-      showFrame(d.frame);
+      showFrame(d.frame, d.state);
       updateUI(d.state);
       if (d.progress != null) {
         fpsBadge.textContent = Math.round(d.progress * 100) + '%';
@@ -568,12 +987,13 @@ function go() {
 }
 
 async function analyzeImage(file) {
-  loadingBar.style.display='block'; noSignal.style.display='none'; frameEl.style.display='none';
+  loadingBar.style.display='block'; noSignal.style.display='none'; videoEl.style.display='none'; frameEl.style.display='none';
+  clearOverlay();
   try {
     const fd=new FormData(); fd.append('file',file);
     const r = await fetch(API_URL+'/analyze',{method:'POST',body:fd});
     const d = await r.json();
-    if (d.frame) showFrame(d.frame);
+    if (d.frame) showFrame(d.frame, d.state);
     if (d.state) updateUI(d.state);
   } catch(e){ console.error(e); }
   loadingBar.style.display='none';
@@ -587,11 +1007,11 @@ function frameLoop() {
 
   // 帧率限制：避免发帧过快导致后端堆积
   const tsNow = performance.now();
-  if (tsNow - lastSendTs < 1000 / TARGET_FPS) return;
+  if (FRAME_RATE_LIMIT_ENABLED && tsNow - lastSendTs < 1000 / TARGET_FPS) return;
   lastSendTs = tsNow;
 
-  // 限制分辨率降低传输/处理开销
-  const MAX_W = 480, MAX_H = 360;
+  // 保留 640x480 细节；手机/香烟/水杯都是小目标，过度压缩会明显降低精度
+  const MAX_W = CAMERA_MAX_W, MAX_H = CAMERA_MAX_H;
   let vw = videoEl.videoWidth  || 640;
   let vh = videoEl.videoHeight || 480;
   if (vw > MAX_W || vh > MAX_H) {
@@ -599,6 +1019,7 @@ function frameLoop() {
     vw = Math.round(vw * scale);
     vh = Math.round(vh * scale);
   }
+  lastProcessedFrame = { w: vw, h: vh };
   hiddenCvs.width  = vw;
   hiddenCvs.height = vh;
   hiddenCtx.drawImage(videoEl, 0, 0, vw, vh);
@@ -609,7 +1030,7 @@ function frameLoop() {
       if (ws && ws.readyState===WebSocket.OPEN) ws.send(buf);
       else busy=false;
     });
-  }, 'image/jpeg', 0.50);
+  }, 'image/jpeg', CAMERA_JPEG_QUALITY);
 
   const now = performance.now();
   if (now - lastFpsTs >= 1000) {
@@ -626,6 +1047,9 @@ function stopAll() {
   videoEl.srcObject = null;
   videoEl.src = '';
   videoEl.load(); // 释放资源
+  videoEl.style.display = 'block';
+  clearOverlay();
+  overlayCvs.style.display = 'none';
   frameEl.style.display = 'none';
   frameEl.src = '';
   noSignal.style.display = 'flex';
@@ -639,13 +1063,212 @@ function stopAll() {
   resetUI();
 }
 
-function showFrame(b64) {
+function showFrame(b64, state = null) {
+  lastOverlayState = state || null;
+  videoEl.style.display = 'none';
+  overlayCvs.style.display = state ? 'block' : 'none';
+  if (!state) clearOverlay();
   frameEl.src = 'data:image/jpeg;base64,' + b64;
   frameEl.style.display = 'block';
   noSignal.style.display = 'none';
   loadingBar.style.display = 'none';
   actionBtn.disabled = false;
+  if (state && frameEl.complete && frameEl.naturalWidth) drawOverlay(state);
 }
+
+function showCameraOutput(state) {
+  videoEl.style.display = 'block';
+  frameEl.style.display = 'none';
+  frameEl.src = '';
+  overlayCvs.style.display = 'block';
+  noSignal.style.display = 'none';
+  loadingBar.style.display = 'none';
+  actionBtn.disabled = false;
+  drawOverlay(state);
+}
+
+function syncOverlayCanvas() {
+  const rect = overlayCvs.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.round(rect.width * dpr));
+  const height = Math.max(1, Math.round(rect.height * dpr));
+  if (overlayCvs.width !== width || overlayCvs.height !== height) {
+    overlayCvs.width = width;
+    overlayCvs.height = height;
+  }
+  overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { width: rect.width, height: rect.height };
+}
+
+function clearOverlay() {
+  lastOverlayState = null;
+  const { width, height } = syncOverlayCanvas();
+  overlayCtx.clearRect(0, 0, width, height);
+}
+
+function containRect(srcW, srcH, dstW, dstH) {
+  if (!srcW || !srcH || !dstW || !dstH) return null;
+  const scale = Math.min(dstW / srcW, dstH / srcH);
+  const width = srcW * scale;
+  const height = srcH * scale;
+  return {
+    x: (dstW - width) / 2,
+    y: (dstH - height) / 2,
+    width,
+    height,
+  };
+}
+
+function overlayColor(fatigue) {
+  if (fatigue === 'ALERT') return '#dc4c64';
+  if (fatigue === 'WARNING') return '#f0b429';
+  return '#64d38a';
+}
+
+function drawMappedBox(bbox, fitted, scaleX, scaleY, style = {}) {
+  if (!bbox || bbox.length !== 4) return null;
+  const [x, y, w, h] = bbox.map(v => Number(v) || 0);
+  const dx = fitted.x + x * scaleX;
+  const dy = fitted.y + y * scaleY;
+  const dw = w * scaleX;
+  const dh = h * scaleY;
+  overlayCtx.strokeStyle = style.color || '#ffffff';
+  overlayCtx.lineWidth = style.lineWidth || 2;
+  if (style.dash) overlayCtx.setLineDash(style.dash);
+  else overlayCtx.setLineDash([]);
+  overlayCtx.strokeRect(dx, dy, dw, dh);
+  overlayCtx.setLineDash([]);
+
+  if (style.label) {
+    overlayCtx.font = style.font || '600 12px Inter, sans-serif';
+    const textWidth = overlayCtx.measureText(style.label).width;
+    const tagW = textWidth + 10;
+    const tagH = 20;
+    const tagY = Math.max(0, dy - tagH);
+    overlayCtx.fillStyle = style.color || '#ffffff';
+    overlayCtx.fillRect(dx, tagY, tagW, tagH);
+    overlayCtx.fillStyle = '#ffffff';
+    overlayCtx.textBaseline = 'middle';
+    overlayCtx.fillText(style.label, dx + 5, tagY + tagH / 2);
+  }
+
+  return { dx, dy, dw, dh };
+}
+
+function drawOverlay(state) {
+  lastOverlayState = state || null;
+  const { width: canvasW, height: canvasH } = syncOverlayCanvas();
+  overlayCtx.clearRect(0, 0, canvasW, canvasH);
+  if (!state) return;
+
+  let displayWidth = 0;
+  let displayHeight = 0;
+  let sourceWidth = 0;
+  let sourceHeight = 0;
+
+  if (mode === 'camera' && videoEl.videoWidth && videoEl.videoHeight && lastProcessedFrame.w && lastProcessedFrame.h) {
+    displayWidth = videoEl.videoWidth;
+    displayHeight = videoEl.videoHeight;
+    sourceWidth = lastProcessedFrame.w;
+    sourceHeight = lastProcessedFrame.h;
+  } else if (frameEl.naturalWidth && frameEl.naturalHeight) {
+    displayWidth = frameEl.naturalWidth;
+    displayHeight = frameEl.naturalHeight;
+    sourceWidth = frameEl.naturalWidth;
+    sourceHeight = frameEl.naturalHeight;
+  } else {
+    return;
+  }
+
+  const fitted = containRect(displayWidth, displayHeight, canvasW, canvasH);
+  const bbox = state.face_bbox;
+  if (!fitted || !bbox || bbox.length !== 4 || !sourceWidth || !sourceHeight) return;
+
+  const scaleX = fitted.width / sourceWidth;
+  const scaleY = fitted.height / sourceHeight;
+  const hasDistraction = hasDistractionState(state);
+  const color = hasDistraction ? overlayColor('WARNING') : (state.eye_occluded ? overlayColor('WARNING') : overlayColor(state.fatigue));
+  const label = hasDistraction ? distractionBoxLabel(state.distraction) : (state.eye_occluded ? '眼部遮挡' : (state.fatigue || 'NORMAL'));
+  const phoneBoxes = Array.isArray(state.phone_boxes) ? state.phone_boxes : [];
+  const cigaretteBoxes = Array.isArray(state.cigarette_boxes) ? state.cigarette_boxes : [];
+  const smokeBoxes = Array.isArray(state.smoke_boxes) ? state.smoke_boxes : [];
+  const drinkBoxes = [
+    ...(Array.isArray(state.bottle_boxes) ? state.bottle_boxes : []),
+    ...(Array.isArray(state.cup_boxes) ? state.cup_boxes : []),
+    ...(Array.isArray(state.drink_boxes) ? state.drink_boxes : []),
+  ];
+
+  drawMappedBox(state.face_bbox, fitted, scaleX, scaleY, {
+    color,
+    lineWidth: 2,
+    label,
+    font: '600 13px Inter, sans-serif',
+  });
+  drawMappedBox(state.left_eye_bbox, fitted, scaleX, scaleY, {
+    color: '#5dade2',
+    lineWidth: 1.5,
+    label: '左眼',
+    dash: [4, 3],
+  });
+  drawMappedBox(state.right_eye_bbox, fitted, scaleX, scaleY, {
+    color: '#5dade2',
+    lineWidth: 1.5,
+    label: '右眼',
+    dash: [4, 3],
+  });
+  drawMappedBox(state.mouth_bbox, fitted, scaleX, scaleY, {
+    color: '#c56cf0',
+    lineWidth: 1.5,
+    label: '嘴巴',
+    dash: [6, 3],
+  });
+  phoneBoxes.forEach(box => {
+    drawMappedBox(box, fitted, scaleX, scaleY, {
+      color: '#ff9f43',
+      lineWidth: 2,
+      label: '手机',
+    });
+  });
+  cigaretteBoxes.forEach(box => {
+    drawMappedBox(box, fitted, scaleX, scaleY, {
+      color: '#ff6b6b',
+      lineWidth: 2,
+      label: '香烟',
+    });
+  });
+  smokeBoxes.forEach(box => {
+    drawMappedBox(box, fitted, scaleX, scaleY, {
+      color: '#ff6b6b',
+      lineWidth: 2,
+      label: '烟雾',
+    });
+  });
+  drinkBoxes.forEach(box => {
+    drawMappedBox(box, fitted, scaleX, scaleY, {
+      color: '#4cd137',
+      lineWidth: 2,
+      label: '水杯',
+    });
+  });
+}
+
+window.addEventListener('resize', () => {
+  if (lastOverlayState && overlayCvs.style.display !== 'none') drawOverlay(lastOverlayState);
+  else if (overlayCvs.style.display !== 'none') clearOverlay();
+});
+videoEl.addEventListener('loadedmetadata', () => {
+  if (mode === 'camera' && lastOverlayState) drawOverlay(lastOverlayState);
+});
+frameEl.addEventListener('load', () => {
+  if (frameEl.style.display === 'none') return;
+  if (lastOverlayState) {
+    overlayCvs.style.display = 'block';
+    drawOverlay(lastOverlayState);
+  } else {
+    overlayCvs.style.display = 'none';
+    clearOverlay();
+  }
+});
 
 // ── UI update ─────────────────────────────────────────────────────────────
 const STATE_CLS  = { NORMAL:'ok', WARNING:'warn', ALERT:'alrt' };
@@ -663,10 +1286,10 @@ const ADVICE = {
 
 function fatigueScore(s) {
   let n = 0;
-  if (s.perclos           != null) n += Math.min(s.perclos / 0.30, 1) * 40;
-  if (s.continuous_closed != null) n += Math.min(s.continuous_closed / 3.0, 1) * 25;
-  if (s.yawn_count        != null) n += Math.min(s.yawn_count / 5.0, 1) * 15;
-  if (s.lstm_score        != null) n += s.lstm_score * 20;
+  if (s.perclos           != null) n += Math.min(s.perclos / 0.55, 1) * 45;
+  if (s.continuous_closed != null) n += Math.min(s.continuous_closed / 5.0, 1) * 30;
+  if (s.yawn_count        != null) n += Math.min(s.yawn_count / 24.0, 1) * 10;
+  if (s.lstm_score        != null) n += Math.max(0, s.lstm_score - 0.55) / 0.45 * 15;
   // hard floor/ceil from rule engine state
   if (s.fatigue === 'ALERT')   n = Math.max(n, 70);
   if (s.fatigue === 'WARNING') n = Math.max(n, 30);
@@ -676,30 +1299,65 @@ function fatigueScore(s) {
 
 function getSymptoms(s) {
   const items = [];
+  const hasPhoneBox = Array.isArray(s.phone_boxes) && s.phone_boxes.length > 0;
+  const hasDrinkBox =
+    (Array.isArray(s.bottle_boxes) && s.bottle_boxes.length > 0) ||
+    (Array.isArray(s.cup_boxes) && s.cup_boxes.length > 0) ||
+    (Array.isArray(s.drink_boxes) && s.drink_boxes.length > 0);
+  const postureAlerts = new Set(Array.isArray(s.posture_alerts) ? s.posture_alerts : []);
+  const headDown = headDownState(s.pitch);
+  if (s.distraction === 'PHONE_CALL') {
+    items.push({t:'检测到打电话行为', lvl:'alrt'});
+  } else if (s.distraction === 'PHONE_USE' || s.distraction === 'PHONE') {
+    items.push({t:'检测到玩手机行为', lvl:'alrt'});
+  } else if (s.distraction === 'SUSPECTED_PHONE_USE') {
+    items.push({t:'疑似低头玩手机', lvl:'warn'});
+  } else if (hasPhoneBox) {
+    items.push({t:'检测到手机', lvl:'warn'});
+  }
+  if (s.distraction === 'DRINK')
+    items.push({t:'检测到喝水行为', lvl:'warn'});
+  else if (hasDrinkBox)
+    items.push({t:'检测到杯子/水瓶', lvl:'warn'});
+  if (s.distraction === 'SMOKE')
+    items.push({t:'检测到抽烟行为', lvl:'warn'});
+  if (s.distraction === 'HEAD_DOWN')
+    items.push({t:'检测到低头行为', lvl:'warn'});
+  if (s.distraction === 'LOOK_AROUND')
+    items.push({t:'检测到左顾右盼行为', lvl:'warn'});
+  if (postureAlerts.has('HEAD_DOWN') && s.distraction !== 'HEAD_DOWN')
+    items.push({t:'同时检测到低头姿态', lvl:'warn'});
+  if (postureAlerts.has('LOOK_AROUND') && s.distraction !== 'LOOK_AROUND')
+    items.push({t:'同时检测到左顾右盼姿态', lvl:'warn'});
+  if (s.distraction === 'GAZE_AWAY')
+    items.push({t:'检测到视线偏离', lvl:'warn'});
+  if (s.eye_occluded && !hasDistractionState(s))
+    items.push({t:'眼部遮挡', lvl:'warn'});
   // PERCLOS：眼睛在 3 秒窗口内闭合比例
-  if (s.perclos != null && s.perclos >= 0.15)
-    items.push({t:'眼睛闭合频率偏高', lvl: s.perclos >= 0.30 ? 'alrt' : 'warn'});
+  if (s.perclos != null && s.perclos >= 0.28)
+    items.push({t:'眼睛闭合频率偏高', lvl: s.perclos >= 0.55 ? 'alrt' : 'warn'});
 
   // 哈欠：当前帧 MAR 需 >= 0.70（避免轻微张嘴误报）
   if (s.mar != null && s.mar >= 0.70)
     items.push({t:'检测到哈欠动作', lvl:'warn'});
 
   // 持续闭眼
-  if (s.continuous_closed != null && s.continuous_closed >= 1.5)
+  if (s.continuous_closed != null && s.continuous_closed >= 2.5)
     items.push({t:`眼睛持续闭合 ${s.continuous_closed.toFixed(1)} 秒`,
-                lvl: s.continuous_closed >= 3 ? 'alrt' : 'warn'});
+                lvl: s.continuous_closed >= 5 ? 'alrt' : 'warn'});
 
   // yawn_count 是窗口内哈欠帧数（非次数），窗口约 90 帧；>= 15 帧才有意义
-  if (s.yawn_count != null && s.yawn_count >= 15)
-    items.push({t:'持续哈欠中', lvl: s.yawn_count >= 30 ? 'alrt' : 'warn'});
+  if (s.yawn_count != null && s.yawn_count >= 18)
+    items.push({t:'持续哈欠中', lvl: s.yawn_count >= 45 ? 'alrt' : 'warn'});
 
   // 点头：events/s，>= 0.6/s 才报警（之前 0.25/s 太敏感）
-  if (s.nod_freq != null && s.nod_freq >= 0.6)
+  if (s.nod_freq != null && s.nod_freq >= 0.8)
     items.push({t:'检测到点头现象', lvl:'warn'});
 
-  // 视线偏离：纯 yaw 超 40° 才算（驾驶员低头不报警）
-  if (s.yaw != null && Math.abs(s.yaw) > 40)
-    items.push({t:'视线偏离前方', lvl: Math.abs(s.yaw) > 55 ? 'alrt' : 'warn'});
+  if (headDown.level === 'alrt')
+    items.push({t:'检测到持续低头动作', lvl:'alrt'});
+  else if (headDown.level === 'warn')
+    items.push({t:'检测到低头动作', lvl:'warn'});
 
   if (s.lstm_pred === 1)
     items.push({t:'行为特征分析显示疲劳', lvl:'warn'});
@@ -707,18 +1365,65 @@ function getSymptoms(s) {
   return items;
 }
 
-function eyeState(ear) {
+function eyeState(ear, eyeOccluded) {
+  if (eyeOccluded) return { text:'眼部遮挡', cls:'warn', pct:35 };
   if (ear == null) return { text:'—', cls:'', pct:0 };
   if (ear < 0.14)  return { text:'闭眼',    cls:'alrt', pct: Math.round(ear/0.14*20)   };
   if (ear < 0.20)  return { text:'半睁眼',  cls:'warn', pct: Math.round(ear/0.35*100)  };
                    return { text:'正常睁眼', cls:'ok',   pct: Math.min(Math.round(ear/0.35*100), 100) };
 }
 
-function attnState(yaw, pitch) {
-  // 只用 yaw（左右偏转）判断注意力，驾驶员自然低头（pitch 偏大）不应报警
-  const y = yaw != null ? Math.abs(yaw) : 0;
-  if (y > 45) return { text:'注意力分散', cls:'alrt' };
-  if (y > 30) return { text:'轻度分散',   cls:'warn' };
+function headDownState(pitch) {
+  if (pitch == null) {
+    headPoseModel = { emaPitch: null };
+    return { level:'ok', pitch:0 };
+  }
+  const p = Number(pitch) || 0;
+  headPoseModel.emaPitch = headPoseModel.emaPitch == null ? p : (headPoseModel.emaPitch * 0.7 + p * 0.3);
+  const smoothedPitch = headPoseModel.emaPitch;
+  if (smoothedPitch <= -18) return { level:'alrt', pitch:smoothedPitch };
+  if (smoothedPitch <= -10) return { level:'warn', pitch:smoothedPitch };
+  return { level:'ok', pitch:smoothedPitch };
+}
+
+function attnState(distraction, yaw, eyeOccluded) {
+  if (distraction === 'PHONE_CALL') return { text:'打电话', cls:'alrt' };
+  if (distraction === 'PHONE_USE' || distraction === 'PHONE') return { text:'玩手机', cls:'alrt' };
+  if (distraction === 'SUSPECTED_PHONE_USE') return { text:'疑似玩手机', cls:'warn' };
+  if (distraction === 'DRINK') return { text:'喝水分心', cls:'warn' };
+  if (distraction === 'SMOKE') return { text:'抽烟分心', cls:'warn' };
+  if (distraction === 'HEAD_DOWN') return { text:'低头分心', cls:'warn' };
+  if (distraction === 'LOOK_AROUND') return { text:'左顾右盼', cls:'warn' };
+  if (distraction === 'GAZE_AWAY') return { text:'注意力分散', cls:'warn' };
+  if (eyeOccluded) {
+    attnModel = { emaYaw: null, level: 'warn' };
+    return { text:'无法判断', cls:'warn' };
+  }
+  if (mode !== 'camera') {
+    attnModel = { emaYaw: null, level: 'ok' };
+    return { text:'专注前方', cls:'ok' };
+  }
+
+  const absYaw = yaw != null ? Math.abs(Number(yaw) || 0) : 0;
+  attnModel.emaYaw = attnModel.emaYaw == null ? absYaw : (attnModel.emaYaw * 0.72 + absYaw * 0.28);
+
+  const smoothedYaw = attnModel.emaYaw;
+  let nextLevel = attnModel.level;
+
+  if (attnModel.level === 'alrt') {
+    if (smoothedYaw < 22) nextLevel = 'ok';
+    else if (smoothedYaw < 34) nextLevel = 'warn';
+  } else if (attnModel.level === 'warn') {
+    if (smoothedYaw >= 40) nextLevel = 'alrt';
+    else if (smoothedYaw < 18) nextLevel = 'ok';
+  } else {
+    if (smoothedYaw >= 40) nextLevel = 'alrt';
+    else if (smoothedYaw >= 24) nextLevel = 'warn';
+  }
+
+  attnModel.level = nextLevel;
+  if (nextLevel === 'alrt') return { text:'注意力分散', cls:'alrt' };
+  if (nextLevel === 'warn') return { text:'轻度分散', cls:'warn' };
   return { text:'专注前方', cls:'ok' };
 }
 
@@ -734,35 +1439,117 @@ function scoreDesc(n, f) {
   return '疲劳程度较低，继续监测中';
 }
 
+function statusMeta(s) {
+  if (s.distraction === 'PHONE_CALL') {
+    return {
+      cls: 'alrt',
+      main: '分心预警：打电话',
+      sub: '手机位于耳侧区域，驾驶注意力受到明显干扰',
+    };
+  }
+  if (s.distraction === 'PHONE_USE' || s.distraction === 'PHONE') {
+    return {
+      cls: 'alrt',
+      main: '分心预警：玩手机',
+      sub: '手机位于脸部下方或手持区域，请立即放下手机并专注前方',
+    };
+  }
+  if (s.distraction === 'SUSPECTED_PHONE_USE') {
+    return {
+      cls: 'warn',
+      main: '分心预警：疑似玩手机',
+      sub: '未稳定检测到手机，但头部姿态持续低头，建议确认驾驶员注意力',
+    };
+  }
+  if (s.distraction === 'DRINK') {
+    return {
+      cls: 'warn',
+      main: '分心预警：喝水',
+      sub: '杯子或水瓶接近嘴部区域，建议完成操作后再继续驾驶',
+    };
+  }
+  if (s.distraction === 'SMOKE') {
+    return {
+      cls: 'warn',
+      main: '分心预警：抽烟',
+      sub: '检测到手持香烟或吸烟行为，可能影响驾驶安全',
+    };
+  }
+  if (s.distraction === 'HEAD_DOWN') {
+    return {
+      cls: 'warn',
+      main: '分心预警：低头',
+      sub: '头部姿态持续偏离前方，请尽快恢复视线',
+    };
+  }
+  if (s.distraction === 'LOOK_AROUND') {
+    return {
+      cls: 'warn',
+      main: '分心预警：左顾右盼',
+      sub: '检测到持续观察侧方，请尽快恢复视线前方',
+    };
+  }
+  if (s.distraction === 'GAZE_AWAY') {
+    return {
+      cls: 'warn',
+      main: '分心预警：视线偏离',
+      sub: '检测到视线持续偏离前方，请保持注意力集中',
+    };
+  }
+  if (s.eye_occluded) {
+    return {
+      cls: 'warn',
+      main: '眼部遮挡',
+      sub: '检测到眼部区域被遮挡，眼睛相关指标可信度下降',
+    };
+  }
+  const fatigueCls = STATE_CLS[s.fatigue] || 'ok';
+  return {
+    cls: fatigueCls,
+    main: STATE_TEXT[s.fatigue] || '状态良好',
+    sub: STATE_SUB[s.fatigue] || '',
+  };
+}
+
+function adviceMeta(s, statusCls) {
+  if (s && DISTRACTION_ADVICE[s.distraction]) {
+    return DISTRACTION_ADVICE[s.distraction];
+  }
+  return ADVICE[statusCls] || ADVICE.ok;
+}
+
 function updateUI(s) {
   if (!s) return;
-  const fc  = STATE_CLS[s.fatigue]  || 'ok';
+  const status = statusMeta(s);
+  const fc  = status.cls;
+  const fatigueCls = STATE_CLS[s.fatigue] || 'ok';
   const score = fatigueScore(s);
   const symptoms = getSymptoms(s);
   const avg_ear = (s.ear_left!=null && s.ear_right!=null) ? (s.ear_left+s.ear_right)/2 : null;
-  const eye  = eyeState(avg_ear);
-  const attn = attnState(s.yaw, s.pitch);
+  const eye  = eyeState(avg_ear, s.eye_occluded && !hasDistractionState(s));
+  const attn = attnState(s.distraction, s.yaw, s.eye_occluded);
 
   // 状态卡
   const sc = $('statusCard');
   sc.className = 'card status-card ' + fc;
   $('statusMain').className = 'status-main ' + fc;
-  $('statusMain').textContent = STATE_TEXT[s.fatigue] || '状态良好';
-  $('statusSub').textContent  = STATE_SUB[s.fatigue]  || '';
+  $('statusMain').textContent = status.main;
+  $('statusSub').textContent  = status.sub;
 
   // 疲劳指数
   const color = scoreColor(score);
   $('scoreNum').textContent = score;
-  $('scoreNum').className   = 'score-num ' + fc;
+  $('scoreNum').className   = 'score-num ' + fatigueCls;
   const sf = $('scoreFill');
   sf.style.width      = score + '%';
   sf.style.background = color;
   $('scoreDesc').textContent = scoreDesc(score, s.fatigue);
+  syncSafetyAlarm(s);
 
   // 症状
   const sl = $('symptomList');
   if (symptoms.length === 0) {
-    sl.innerHTML = '<span class="no-symptom">暂未检测到疲劳信号</span>';
+    sl.innerHTML = '<span class="no-symptom">暂未检测到疲劳或分心信号</span>';
   } else {
     sl.innerHTML = symptoms.map(({t, lvl}) =>
       `<div class="symptom-item"><div class="symptom-dot ${lvl}"></div>${t}</div>`
@@ -778,21 +1565,22 @@ function updateUI(s) {
   // 注意力
   $('attnState').textContent = attn.text;
   $('attnState').className   = 'mini-val ' + attn.cls;
+  updateBehaviorEvidence(s);
 
   // 建议
-  const adv = ADVICE[fc];
+  const adv = adviceMeta(s, fc);
   const ac = $('adviceCard');
   ac.className          = 'advice-card ' + fc;
   $('adviceIcon').textContent  = adv.icon;
   $('adviceTitle').textContent = adv.title;
   $('adviceBody').textContent  = adv.body;
-
-  // 疲劳警告覆盖层 + 音效
-  updateAlertOverlay(score);
 }
 
 function resetUI() {
-  $('alertOverlay').classList.remove('show');
+  attnModel = { emaYaw: null, level: 'ok' };
+  headPoseModel = { emaPitch: null };
+  lastAlarmBeepTs = 0;
+  syncSafetyAlarm(null);
   $('statusCard').className = 'card status-card';
   $('statusMain').className = 'status-main';
   $('statusMain').textContent = '状态良好';
@@ -801,9 +1589,12 @@ function resetUI() {
   $('scoreNum').className   = 'score-num';
   $('scoreFill').style.width = '0%';
   $('scoreDesc').textContent = '等待检测数据…';
-  $('symptomList').innerHTML = '<span class="no-symptom">暂未检测到疲劳信号</span>';
+  $('symptomList').innerHTML = '<span class="no-symptom">暂未检测到疲劳或分心信号</span>';
   $('eyeState').textContent  = '—'; $('eyeState').className = 'mini-val';
   $('attnState').textContent = '—'; $('attnState').className = 'mini-val';
+  $('rawDistraction').textContent = '—';
+  $('stableDistraction').textContent = '—';
+  $('behaviorEvidence').innerHTML = '<span class="no-symptom">等待检测数据…</span>';
   $('eyeBar').style.width = '0%';
   $('adviceCard').className = 'advice-card ok';
   $('adviceIcon').textContent  = '✅';

@@ -9,7 +9,8 @@ def test_fatigue_score_is_capped_to_one() -> None:
 def test_fatigue_level_thresholds() -> None:
     assert fatigue_level(perclos=0.10, warning=0.15, alert=0.40) == "NORMAL"
     assert fatigue_level(perclos=0.20, warning=0.15, alert=0.40) == "WARNING"
-    assert fatigue_level(perclos=0.50, warning=0.15, alert=0.40) == "ALERT"
+    assert fatigue_level(perclos=0.50, warning=0.15, alert=0.40) == "WARNING"
+    assert fatigue_level(perclos=0.50, warning=0.15, alert=0.40, continuous_closed=1.0) == "ALERT"
 
 
 def test_fatigue_level_continuous_closed() -> None:
@@ -23,7 +24,10 @@ def test_fatigue_level_continuous_closed() -> None:
 def test_distraction_priority() -> None:
     assert distraction_level(10.0, 2.0, ["PHONE", "SMOKE"]) == "PHONE"
     assert distraction_level(10.0, 2.0, ["SMOKE"]) == "SMOKE"
-    assert distraction_level(2.1, 2.0, []) == "GAZE_AWAY"
+    assert distraction_level(10.0, 2.0, ["SUSPECTED_PHONE_USE"], head_down_duration=2.0) == "HEAD_DOWN"
+    assert distraction_level(0.0, 2.0, [], look_left_duration=2.1) == "LOOK_AROUND"
+    assert distraction_level(0.0, 2.0, [], look_right_duration=2.1) == "LOOK_AROUND"
+    assert distraction_level(2.1, 2.0, []) == "LOOK_AROUND"
 
 
 def test_state_from_metrics_maps_channels() -> None:
@@ -41,7 +45,7 @@ def test_state_from_metrics_maps_channels() -> None:
     }
     state = state_from_metrics(metrics, thresholds, ["NO_SEATBELT"])
     assert state == {
-        "fatigue": "ALERT",
+        "fatigue": "WARNING",
         "distraction": "NORMAL",
         "danger": "NO_SEATBELT",
     }

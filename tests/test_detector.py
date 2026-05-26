@@ -34,8 +34,8 @@ class TestYOLODetector:
     def test_to_grouped_dict_multiple_classes(self) -> None:
         dets = [
             Detection(0, 0.9, (10, 10, 50, 50)),
-            Detection(1, 0.8, (100, 100, 30, 30)),
-            Detection(1, 0.7, (200, 200, 30, 30)),
+            Detection(1, 0.8, (100, 100, 130, 135)),
+            Detection(1, 0.7, (200, 200, 240, 250)),
             Detection(3, 0.6, (0, 0, 10, 10)),
         ]
         grouped = YOLODetector.to_grouped_dict(dets)
@@ -43,3 +43,7 @@ class TestYOLODetector:
         assert len(grouped["phone"]) == 2
         assert len(grouped["cigarette"]) == 0
         assert len(grouped["seatbelt"]) == 1
+        assert grouped["face"][0] == (10, 10, 50, 50)
+        assert grouped["phone"][0] == (100, 100, 30, 35)
+        assert grouped["phone"][1] == (200, 200, 40, 50)
+        assert grouped["seatbelt"][0] == (0, 0, 10, 10)

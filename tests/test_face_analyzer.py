@@ -29,6 +29,7 @@ class TestFaceAnalyzer:
             "yaw",
             "roll",
             "eye_closed",
+            "pose_valid",
             "is_yawning",
             "landmarks_468",
         }

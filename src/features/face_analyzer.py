@@ -97,7 +97,9 @@ class FaceAnalyzer:
         if not model.exists():
             raise FileNotFoundError(f"FaceLandmarker model not found: {model}")
 
-        base_options = BaseOptions(model_asset_path=str(model))
+        # Pass bytes instead of a filesystem path so MediaPipe's native layer
+        # does not have to reopen non-ASCII Windows paths.
+        base_options = BaseOptions(model_asset_buffer=model.read_bytes())
         options = FaceLandmarkerOptions(
             base_options=base_options,
             running_mode=RunningMode.IMAGE,
@@ -110,7 +112,7 @@ class FaceAnalyzer:
 
     def analyze(self, face_roi: np.ndarray) -> Dict[str, float | bool | np.ndarray | None]:
         if face_roi.size == 0:
-            return self._synthetic_analysis()
+            return self._synthetic_analysis(eye_occluded=False)
 
         # OpenCV is BGR, MediaPipe expects RGB
         rgb = cv2.cvtColor(face_roi, cv2.COLOR_BGR2RGB)
@@ -122,10 +124,10 @@ class FaceAnalyzer:
             result = self._landmarker.detect(mp_image)
         except Exception as e:
             logger.debug(f"MediaPipe detection failed: {e}, using synthetic fallback")
-            return self._synthetic_analysis()
+            return self._synthetic_analysis(eye_occluded=True)
 
         if not result.face_landmarks:
-            return self._synthetic_analysis()
+            return self._synthetic_analysis(eye_occluded=True)
 
         landmarks_norm = result.face_landmarks[0]
         landmarks = np.array([(lm.x * w, lm.y * h) for lm in landmarks_norm], dtype=np.float32)
@@ -145,11 +147,13 @@ class FaceAnalyzer:
             "yaw": float(yaw),
             "roll": float(roll),
             "eye_closed": avg_ear < self.ear_threshold,
+            "eye_occluded": False,
+            "pose_valid": True,
             "is_yawning": mar > self.mar_threshold,
             "landmarks_468": landmarks,
         }
 
-    def _synthetic_analysis(self) -> Dict[str, float | bool | np.ndarray | None]:
+    def _synthetic_analysis(self, eye_occluded: bool) -> Dict[str, float | bool | np.ndarray | None]:
         """Return neutral (non-triggering) values when MediaPipe cannot detect a face.
 
         Absence of face detection is not evidence of fatigue — returning a
@@ -165,6 +169,8 @@ class FaceAnalyzer:
             "yaw": 0.0,
             "roll": 0.0,
             "eye_closed": False,
+            "eye_occluded": eye_occluded,
+            "pose_valid": False,
             "is_yawning": False,
             "landmarks_468": None,
         }

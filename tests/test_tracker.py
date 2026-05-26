@@ -25,4 +25,25 @@ class TestByteTrackerWrapper:
     def test_update_uses_first_box(self) -> None:
         tracker = ByteTrackerWrapper()
         track = tracker.update([(0, 0, 10, 10), (20, 20, 30, 30)])
-        assert track.bbox == (0, 0, 10, 10)
+        assert track.bbox == (20, 20, 30, 30)
+
+    def test_update_prefers_more_central_larger_face(self) -> None:
+        tracker = ByteTrackerWrapper()
+        # Second face is larger and closer to the expected driver area.
+        boxes = [(10, 10, 90, 90), (200, 120, 420, 360)]
+        track = tracker.update(boxes, frame_shape=(480, 640, 3))
+        assert track is not None
+        assert track.bbox == (200, 120, 420, 360)
+
+    def test_update_prefers_temporal_continuity_over_new_face(self) -> None:
+        tracker = ByteTrackerWrapper()
+        first = tracker.update([(220, 120, 420, 360)], frame_shape=(480, 640, 3))
+        assert first is not None
+        # First candidate overlaps strongly with the previous track; second is larger
+        # but should not steal focus immediately.
+        track = tracker.update(
+            [(225, 125, 425, 365), (120, 80, 470, 420)],
+            frame_shape=(480, 640, 3),
+        )
+        assert track is not None
+        assert track.bbox == (225, 125, 425, 365)

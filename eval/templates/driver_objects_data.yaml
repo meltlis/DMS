@@ -1,0 +1,10 @@
+# Driver object detection dataset template
+#
+# Copy this file to datasets/driver_objects/data.yaml after annotation.
+
+path: D:/桌面/工部—项目/机器学习/大作业/DMS-main/DMS-main/datasets/driver_objects
+train: train/images
+val: val/images
+
+nc: 4
+names: [phone, bottle, cup, cigarette]

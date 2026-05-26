@@ -21,7 +21,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.pipeline import DMSPipeline, load_yaml
-from src.pipeline_night import NightPipeline
 
 PORT = 8000
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,10 +38,11 @@ app.add_middleware(
 )
 
 _pipeline: DMSPipeline | None = None
-_night_pipeline: NightPipeline | None = None
 _executor = ThreadPoolExecutor(max_workers=1)
 _pipeline_lock = threading.Lock()
-_current_mode = "day"  # "day" | "night"
+_current_mode = "day"
+_STREAM_MAX_W = 480
+_STREAM_MAX_H = 360
 
 
 def _init_pipeline() -> DMSPipeline:
@@ -54,31 +54,24 @@ def _init_pipeline() -> DMSPipeline:
     return _pipeline
 
 
-def _init_night_pipeline() -> NightPipeline:
-    global _night_pipeline
-    if _night_pipeline is None:
-        runtime = load_yaml(ROOT / "configs" / "runtime.yaml")
-        _night_pipeline = NightPipeline(
-            window_seconds=10.0,
-            fps=int(runtime.get("fps", 30)),
-            device=str(runtime.get("device", "cpu")),
-        )
-    return _night_pipeline
-
-
 def _do_process(frame: np.ndarray, ts: float) -> dict:
     with _pipeline_lock:
-        if _current_mode == "night":
-            return _init_night_pipeline().process(frame, ts)
         return _init_pipeline().process(frame, ts)
+
+
+def _resize_for_stream(frame: np.ndarray) -> np.ndarray:
+    h, w = frame.shape[:2]
+    if w <= _STREAM_MAX_W and h <= _STREAM_MAX_H:
+        return frame
+
+    scale = min(_STREAM_MAX_W / max(w, 1), _STREAM_MAX_H / max(h, 1))
+    new_w = max(1, int(round(w * scale)))
+    new_h = max(1, int(round(h * scale)))
+    return cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
 
 def _do_reset() -> None:
     with _pipeline_lock:
-        if _current_mode == "night":
-            if _night_pipeline is not None:
-                _night_pipeline.reset()
-            return
         p = _init_pipeline()
         try:
             p.fatigue_fsm.reset()
@@ -87,9 +80,14 @@ def _do_reset() -> None:
             p.fsm.history = []
             p.temporal._windows.clear()
             p.temporal._closed_since.clear()
-            p.danger._phone_first_ts = None
-            p.danger._start_ts = None
-            p.danger._seatbelt_seen = False
+            if hasattr(p, "object_smoother"):
+                p.object_smoother.reset()
+            if hasattr(p.danger, "reset"):
+                p.danger.reset()
+            else:
+                p.danger._phone_first_ts = None
+                p.danger._start_ts = None
+                p.danger._seatbelt_seen = False
         except Exception as exc:
             print(f"[reset] {exc}")
 
@@ -107,22 +105,102 @@ _OCV = {
     "ALERT":   (60,  60,  220),
 }
 
+_LEFT_EYE_IDX = [33, 160, 158, 133, 153, 144]
+_RIGHT_EYE_IDX = [362, 385, 387, 263, 373, 380]
+_MOUTH_IDX = [61, 291, 13, 14, 78, 308]
+
+_DISTRACTION_FACE_LABELS = {
+    "PHONE_CALL": "打电话",
+    "PHONE_USE": "玩手机",
+    "PHONE": "手机",
+    "DRINK": "喝水",
+    "SMOKE": "抽烟",
+    "HEAD_DOWN": "低头",
+    "LOOK_AROUND": "左顾右盼",
+    "SUSPECTED_PHONE_USE": "疑似玩手机",
+}
+
+_POSTURE_FACE_LABELS = {
+    "HEAD_DOWN": "低头",
+    "LOOK_AROUND": "左顾右盼",
+}
+
+
+def _region_bbox(landmarks: np.ndarray | None, indices: list[int], pad_ratio: float = 0.35) -> list[int] | None:
+    if landmarks is None:
+        return None
+    try:
+        pts = landmarks[indices]
+    except Exception:
+        return None
+    if pts.size == 0:
+        return None
+
+    min_xy = pts.min(axis=0)
+    max_xy = pts.max(axis=0)
+    width = max(1.0, float(max_xy[0] - min_xy[0]))
+    height = max(1.0, float(max_xy[1] - min_xy[1]))
+    pad_x = max(2.0, width * pad_ratio)
+    pad_y = max(2.0, height * pad_ratio)
+    x = int(round(min_xy[0] - pad_x))
+    y = int(round(min_xy[1] - pad_y))
+    w = int(round(width + 2 * pad_x))
+    h = int(round(height + 2 * pad_y))
+    return [x, y, w, h]
+
 
 def _annotate(frame: np.ndarray, state: dict) -> np.ndarray:
     out = frame.copy()
     h, w = out.shape[:2]
     fatigue = state.get("fatigue", "NORMAL")
-    color = _OCV.get(fatigue, _OCV["NORMAL"])
     debug = state.get("debug", {})
+    distraction = state.get("distraction", "NORMAL")
+    posture_alerts = debug.get("posture_alerts") or []
+
+    if distraction != "NORMAL":
+        label = _DISTRACTION_FACE_LABELS.get(distraction, distraction)
+        color = _OCV["ALERT"] if distraction in {"PHONE_CALL", "PHONE_USE", "PHONE"} else _OCV["WARNING"]
+    elif posture_alerts:
+        label = _POSTURE_FACE_LABELS.get(posture_alerts[0], posture_alerts[0])
+        color = _OCV["WARNING"]
+    elif fatigue != "NORMAL":
+        label = fatigue
+        color = _OCV.get(fatigue, _OCV["WARNING"])
+    elif debug.get("eye_occluded"):
+        label = "眼部遮挡"
+        color = _OCV["WARNING"]
+    else:
+        label = fatigue
+        color = _OCV["NORMAL"]
+    all_boxes = debug.get("all_bboxes") or {}
 
     bbox = debug.get("face_bbox")
     if bbox and all(v is not None for v in bbox):
         x, y, bw, bh = [int(v) for v in bbox]
         cv2.rectangle(out, (x, y), (x + bw, y + bh), color, 2)
-        (tw, th), _ = cv2.getTextSize(fatigue, cv2.FONT_HERSHEY_SIMPLEX, 0.50, 1)
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.50, 1)
         cv2.rectangle(out, (x, y - th - 8), (x + tw + 8, y), color, -1)
-        cv2.putText(out, fatigue, (x + 4, y - 4),
+        cv2.putText(out, label, (x + 4, y - 4),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.50, (255, 255, 255), 1)
+
+    object_styles = {
+        "phone": ((60, 170, 255), "PHONE"),
+        "cigarette": ((80, 100, 255), "SMOKE"),
+        "smoke": ((80, 100, 255), "SMOKE"),
+        "bottle": ((90, 210, 90), "DRINK"),
+        "cup": ((90, 210, 90), "DRINK"),
+        "drink": ((90, 210, 90), "DRINK"),
+        "water": ((90, 210, 90), "DRINK"),
+    }
+    for key, (obj_color, obj_label) in object_styles.items():
+        for box in all_boxes.get(key, []):
+            try:
+                ox, oy, ow, oh = [int(v) for v in box]
+            except Exception:
+                continue
+            cv2.rectangle(out, (ox, oy), (ox + ow, oy + oh), obj_color, 2)
+            cv2.putText(out, obj_label, (ox, max(14, oy - 4)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, obj_color, 1)
 
     overlay = out.copy()
     cv2.rectangle(overlay, (0, 0), (w, 30), (12, 12, 12), -1)
@@ -157,26 +235,67 @@ def _safe_f(v) -> float | None:
 
 def _serialize(state: dict) -> dict:
     d = state.get("debug", {})
+    landmarks = d.get("landmarks_global")
+    all_boxes = d.get("all_bboxes") or {}
     return {
         "fatigue":           state.get("fatigue", "NORMAL"),
         "distraction":       state.get("distraction", "NORMAL"),
+        "raw_distraction":   d.get("raw_distraction"),
+        "stable_distraction": d.get("stable_distraction"),
         "danger":            state.get("danger", "NORMAL"),
         "alerts":            state.get("alerts", []),
+        "behavior_alerts":    d.get("behavior_alerts", []),
+        "posture_alerts":     d.get("posture_alerts", []),
+        "behavior_raw":       (d.get("behavior_context") or {}).get("raw", {}),
+        "behavior_timers":    (d.get("behavior_context") or {}).get("timers", {}),
+        "behavior_thresholds": d.get("behavior_thresholds", {}),
+        "driver_object_regions": d.get("driver_object_regions", {}),
         "track_id":          state.get("track_id", -1),
         "ear_left":          _safe_f(d.get("ear_left")),
         "ear_right":         _safe_f(d.get("ear_right")),
         "mar":               _safe_f(d.get("mar")),
         "pitch":             _safe_f(d.get("pitch")),
+        "raw_pitch":         _safe_f(d.get("raw_pitch")),
+        "pitch_baseline":    _safe_f(d.get("pitch_baseline")),
         "yaw":               _safe_f(d.get("yaw")),
+        "raw_yaw":           _safe_f(d.get("raw_yaw")),
+        "yaw_baseline":      _safe_f(d.get("yaw_baseline")),
         "roll":              _safe_f(d.get("roll")),
         "perclos":           _safe_f(d.get("perclos")),
         "nod_freq":          _safe_f(d.get("nod_freq")),
         "yawn_count":        d.get("yawn_count"),
         "continuous_closed": _safe_f(d.get("continuous_closed")),
+        "gaze_away_duration": _safe_f(d.get("gaze_away_duration")),
+        "look_left_duration": _safe_f(d.get("look_left_duration")),
+        "look_right_duration": _safe_f(d.get("look_right_duration")),
+        "head_down_duration": _safe_f(d.get("head_down_duration")),
+        "head_down_negative_duration": _safe_f(d.get("head_down_negative_duration")),
+        "head_down_positive_duration": _safe_f(d.get("head_down_positive_duration")),
+        "head_up_duration":   _safe_f(d.get("head_up_duration")),
+        "yaw_suppressed_by_yawn": bool(d.get("yaw_suppressed_by_yawn", False)),
+        "yaw_calibrated":     bool(d.get("yaw_calibrated", False)),
+        "pitch_calibrated":   bool(d.get("pitch_calibrated", False)),
         "lstm_score":        _safe_f(d.get("lstm_score")),
         "lstm_pred":         d.get("lstm_pred"),
         "ir_drowsy_prob":    _safe_f(d.get("ir_drowsy_prob")),
         "ir_perclos":        _safe_f(d.get("ir_perclos")),
+        "eye_occluded":      bool(d.get("eye_occluded", False)),
+        "pose_held":         bool(d.get("pose_held", False)),
+        "pose_valid":        bool(d.get("pose_valid", False)),
+        "pending_object_behavior": bool(d.get("pending_object_behavior", False)),
+        "posture_suppressed": bool(d.get("posture_suppressed", False)),
+        "face_bbox":         d.get("face_bbox"),
+        "face_boxes":        all_boxes.get("face", []),
+        "phone_boxes":       all_boxes.get("phone", []),
+        "cigarette_boxes":   all_boxes.get("cigarette", []),
+        "smoke_boxes":       all_boxes.get("smoke", []),
+        "bottle_boxes":      all_boxes.get("bottle", []),
+        "cup_boxes":         all_boxes.get("cup", []),
+        "drink_boxes":       all_boxes.get("drink", []) + all_boxes.get("water", []),
+        "seatbelt_boxes":    [],
+        "left_eye_bbox":     _region_bbox(landmarks, _LEFT_EYE_IDX),
+        "right_eye_bbox":    _region_bbox(landmarks, _RIGHT_EYE_IDX),
+        "mouth_bbox":        _region_bbox(landmarks, _MOUTH_IDX, pad_ratio=0.45),
     }
 
 
@@ -195,11 +314,10 @@ async def set_mode(body: dict):
     mode = body.get("mode", "day")
     if mode not in ("day", "night"):
         return JSONResponse({"error": "mode must be 'day' or 'night'"}, status_code=400)
+
     _current_mode = mode
     _do_reset()
-    if mode == "night":
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(_executor, _init_night_pipeline)
+
     print(f"[mode] switched to {mode}")
     return {"mode": _current_mode}
 
@@ -229,15 +347,15 @@ async def analyze_image(file: UploadFile = File(...)):
     if frame is None:
         return JSONResponse({"error": "Cannot decode image"}, status_code=400)
     state = await _aprocess(frame, time.time())
-    annotated = _annotate(frame, state)
-    return {"frame": _enc(annotated), "state": _serialize(state)}
+    return {"frame": _enc(frame), "state": _serialize(state)}
 
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket) -> None:
     await ws.accept()
     print("[ws] client connected")
-    ts = 0.0
+    import time
+    start_ts = time.monotonic()
     try:
         while True:
             raw = await ws.receive_bytes()
@@ -245,8 +363,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
             frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
             if frame is None:
                 continue
-            ts += 1.0 / 30.0
-            import time
+            ts = time.monotonic() - start_ts
             t0 = time.time()
             try:
                 state = await _aprocess(frame, ts)
@@ -312,7 +429,7 @@ async def ws_file(ws: WebSocket) -> None:
                 return
             total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
             src_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-            stride, ts, n = 2, 0.0, 0
+            ts, n = 0.0, 0
             try:
                 while True:
                     ok, frame = cap.read()
@@ -320,12 +437,10 @@ async def ws_file(ws: WebSocket) -> None:
                         break
                     n += 1
                     ts += 1.0 / src_fps
-                    if n % stride != 0:
-                        continue
+                    frame = _resize_for_stream(frame)
                     state = _do_process(frame, ts)
-                    ann = _annotate(frame, state)
                     msg = {
-                        "frame":    _enc(ann),
+                        "frame":    _enc(frame),
                         "state":    _serialize(state),
                         "progress": round(n / total, 3),
                     }
