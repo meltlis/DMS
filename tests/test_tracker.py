@@ -47,3 +47,33 @@ class TestByteTrackerWrapper:
         )
         assert track is not None
         assert track.bbox == (225, 125, 425, 365)
+
+    def test_update_times_out_after_missing_faces(self) -> None:
+        tracker = ByteTrackerWrapper(lost_ttl_frames=1)
+        first = tracker.update([(10, 10, 50, 50)])
+        assert first is not None
+
+        held = tracker.update([])
+        assert held is not None
+        assert held.track_id == first.track_id
+
+        assert tracker.update([]) is None
+
+    def test_update_assigns_new_id_after_loss(self) -> None:
+        tracker = ByteTrackerWrapper(lost_ttl_frames=0)
+        first = tracker.update([(10, 10, 50, 50)])
+        assert first is not None
+
+        assert tracker.update([]) is None
+        second = tracker.update([(10, 10, 50, 50)])
+        assert second is not None
+        assert second.track_id == first.track_id + 1
+
+    def test_update_assigns_new_id_for_clear_face_switch(self) -> None:
+        tracker = ByteTrackerWrapper(reid_iou_threshold=0.10)
+        first = tracker.update([(10, 10, 50, 50)])
+        assert first is not None
+
+        second = tracker.update([(200, 200, 260, 260)])
+        assert second is not None
+        assert second.track_id == first.track_id + 1

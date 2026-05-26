@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterable
@@ -42,6 +43,80 @@ _SMOOTHED_OBJECT_CLASSES = ("phone", "bottle", "cup", "drink", "water", "cigaret
 def load_yaml(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def _workspace_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _resolve_path(value: object | None, *, base: Path) -> Path | None:
+    if not value:
+        return None
+    path = Path(str(value))
+    if not path.is_absolute():
+        path = base / path
+    return path
+
+
+def resolve_external_project_root(runtime: Dict[str, Any] | None = None) -> Path | None:
+    """Find the optional YOLO+sequence-model project next to this repo."""
+    runtime = runtime or {}
+    candidates: list[Path] = []
+    configured = _resolve_path(runtime.get("external_project_dir"), base=_workspace_root())
+    env_path = _resolve_path(os.environ.get("DMS_EXTERNAL_PROJECT_DIR"), base=_workspace_root())
+    for path in (configured, env_path):
+        if path is not None:
+            candidates.append(path)
+
+    workspace = _workspace_root()
+    candidates.extend(
+        [
+            workspace / "Drowsiness-Detection-based-on-yolo11-and-LSTM-main",
+            workspace / "Drowsiness-Detection-based-on-yolo11-and-LSTM",
+        ]
+    )
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def resolve_optional_model_path(
+    value: str | None,
+    *,
+    project_root: Path,
+    external_root: Path | None,
+    external_default: str,
+) -> Path | None:
+    configured = _resolve_path(value, base=project_root)
+    if configured is not None and configured.exists():
+        return configured
+
+    if external_root is not None:
+        external_path = external_root / external_default
+        if external_path.exists():
+            return external_path
+    return None
+
+
+def resolve_sequence_model_path(runtime: Dict[str, Any], external_root: Path | None) -> Path | None:
+    project_root = _project_root()
+    configured = _resolve_path(runtime.get("sequence_model_path"), base=project_root)
+    if configured is not None and configured.exists():
+        return configured
+
+    if external_root is None:
+        return None
+    for name in ("lstm_model.pth", "transformer_model.pth"):
+        candidate = external_root / name
+        if candidate.exists():
+            return candidate
+    return None
 
 
 class ObjectBoxSmoother:
@@ -137,18 +212,25 @@ class DMSPipeline:
     def __init__(self, thresholds: Dict[str, float], runtime: Dict[str, Any]) -> None:
         self.thresholds = thresholds
         self.runtime = runtime
+        project_root = _project_root()
+        external_root = resolve_external_project_root(runtime)
         # Prefer the local 4-class detector fine-tuned for DMS objects, including phone.
-        dms4class_model = Path(__file__).resolve().parents[1] / "runs" / "detect" / "dms4class" / "weights" / "best.pt"
-        behavior_model = Path(__file__).resolve().parents[3] / "Drowsiness-Detection-based-on-yolo11-and-LSTM" / "runs" / "detect" / "train16" / "weights" / "best.pt"
-        standard_model = Path(__file__).resolve().parents[1] / "weights" / "yolov11n.pt"
+        dms4class_model = project_root / "runs" / "detect" / "dms4class" / "weights" / "best.pt"
+        behavior_model = resolve_optional_model_path(
+            runtime.get("behavior_model_path"),
+            project_root=project_root,
+            external_root=external_root,
+            external_default="runs/detect/train16/weights/best.pt",
+        )
+        standard_model = project_root / "weights" / "yolov11n.pt"
         aux_model = Path(str(thresholds.get("aux_model_path", "")))
         if not aux_model.is_absolute():
-            aux_model = Path(__file__).resolve().parents[1] / aux_model
+            aux_model = project_root / aux_model
         if not aux_model.exists():
             aux_model = standard_model
         if dms4class_model.exists():
             chosen_model = str(dms4class_model)
-        elif behavior_model.exists():
+        elif behavior_model is not None and behavior_model.exists():
             chosen_model = str(behavior_model)
         elif standard_model.exists():
             chosen_model = str(standard_model)
@@ -180,7 +262,7 @@ class DMSPipeline:
             )
         smoke_model = Path(str(thresholds.get("smoke_model_path", "")))
         if not smoke_model.is_absolute():
-            smoke_model = Path(__file__).resolve().parents[1] / smoke_model
+            smoke_model = project_root / smoke_model
         self.smoke_detector: YOLODetector | None = None
         if bool(thresholds.get("smoke_detector_enabled", True)) and smoke_model.exists():
             self.smoke_detector = YOLODetector(
@@ -189,7 +271,7 @@ class DMSPipeline:
                 conf_threshold=float(thresholds.get("smoke_yolo_confidence", 0.25)),
                 imgsz=int(thresholds.get("smoke_yolo_imgsz", 800)),
             )
-        self.tracker = ByteTrackerWrapper()
+        self.tracker = ByteTrackerWrapper(lost_ttl_frames=int(thresholds.get("face_track_ttl_frames", 8)))
         self.object_smoother = ObjectBoxSmoother(
             ttl_frames=int(thresholds.get("object_track_ttl_frames", 5)),
             alpha=float(thresholds.get("object_track_smoothing", 0.65)),
@@ -214,8 +296,12 @@ class DMSPipeline:
             seatbelt_enabled=bool(thresholds.get("seatbelt_enabled", False)),
             head_down_pitch_deg=float(thresholds.get("phone_head_down_pitch_deg", -18.0)),
         )
-        lstm_path = Path(__file__).resolve().parents[3] / "Drowsiness-Detection-based-on-yolo11-and-LSTM" / "lstm_model.pth"
-        self.lstm = LSTMClassifier(model_path=str(lstm_path), seq_len=30, thresholds=thresholds)
+        sequence_model_path = resolve_sequence_model_path(runtime, external_root)
+        self.lstm = LSTMClassifier(
+            model_path=str(sequence_model_path) if sequence_model_path is not None else "",
+            seq_len=30,
+            thresholds=thresholds,
+        )
         self.fsm = PipelineFSM()
         self.fatigue_fsm = FatigueStateFSM(downgrade_frames=10)
         self.distraction_fsm = TimedStateFSM(
@@ -789,7 +875,11 @@ class DMSPipeline:
             # Phone calls, phone use, drinking, and smoking are distraction
             # events. Do not let pose-heavy LSTM output relabel them as fatigue.
             pass
-        elif rule_fatigue == "NORMAL" and lstm_score > float(self.thresholds.get("lstm_warning_threshold", 0.85)):
+        elif (
+            bool(self.thresholds.get("lstm_can_warn", False))
+            and rule_fatigue == "NORMAL"
+            and lstm_score > float(self.thresholds.get("lstm_warning_threshold", 0.85))
+        ):
             states["fatigue"] = "WARNING"
         elif (
             bool(self.thresholds.get("lstm_can_alert", False))
@@ -841,6 +931,9 @@ class DMSPipeline:
             "pitch_calibrated": bool(metrics.get("pitch_calibrated", False)),
             "lstm_score": float(lstm_score),
             "lstm_pred": int(lstm_pred),
+            "lstm_loaded": bool(self.lstm.model_loaded),
+            "lstm_model_kind": str(getattr(self.lstm, "model_kind", "disabled")),
+            "lstm_model_path": str(getattr(self.lstm, "model_path", "")),
             "eye_occluded": bool(feats.get("eye_occluded", False)),
             "pose_held": bool(feats.get("pose_held", False)),
             "pose_valid": bool(metrics.get("pose_valid", feats.get("pose_valid", False))),

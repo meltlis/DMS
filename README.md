@@ -188,3 +188,19 @@ start_cuda.bat
    - 实时视频流标注（BBox、疲劳等级、特征数值）
    - 支持图片分析、视频文件批量处理
    - 一键重置管线状态
+## External YOLO And Sequence Model Notes
+
+The optional external project is resolved from `configs/runtime.yaml`:
+
+```yaml
+external_project_dir: ../Drowsiness-Detection-based-on-yolo11-and-LSTM-main
+behavior_model_path: ""
+sequence_model_path: ""
+```
+
+When these paths are empty, the pipeline searches the external project for
+`runs/detect/train16/weights/best.pt`, `lstm_model.pth`, and
+`transformer_model.pth`. The sequence checkpoint is loaded for diagnostics, but
+it does not change fatigue state unless `lstm_can_warn` or `lstm_can_alert` is
+enabled in `configs/thresholds.yaml`. The bundled external training data is very
+small, so do not use the sequence score as a standalone accuracy claim.

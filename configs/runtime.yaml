@@ -3,3 +3,6 @@ width: 640
 height: 480
 log_level: INFO
 device: cuda
+external_project_dir: ../Drowsiness-Detection-based-on-yolo11-and-LSTM-main
+behavior_model_path: ""
+sequence_model_path: ""
