@@ -1,6 +1,9 @@
 # Virtual environments
 .venv/
 .venv-cuda/
+.conda-py311/
+.conda-pkgs/
+.pip-cache/
 venv/
 env/
 ENV/
@@ -33,11 +36,16 @@ build/
 .env
 .env.local
 
-# Data and Runs
-/datasets/
-# runs/ 包含训练好的模型，纳入版本控制
-/weights/*.pt
-yolo*.pt
+# Runtime logs and generated outputs
+web_server.log
+web_server_err.log
+*.log
+outputs/
 
+# Local datasets/caches
+datasets/
 reports/
-*.report
+
+# Keep required model weights under version control explicitly.
+# Avoid dropping random downloaded checkpoints into commits.
+weights/*.tmp

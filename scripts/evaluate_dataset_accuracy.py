@@ -50,6 +50,8 @@ def reset_pipeline_state(pipeline: DMSPipeline) -> None:
     pipeline.fsm.current_track_id = None
     pipeline.fsm.reset_count = 0
     pipeline.fsm.history = []
+    pipeline.tracker.reset()
+    pipeline.object_smoother.reset()
     pipeline.temporal._windows.clear()  # type: ignore[attr-defined]
     pipeline.temporal._closed_since.clear()  # type: ignore[attr-defined]
     pipeline.danger._phone_first_ts = None
@@ -155,6 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--inner-videos", default="../dataset/inner_mirror", help="inner_mirror videos root")
     parser.add_argument("--max-frames", type=int, default=3000, help="max sampled frames per video; <=0 full")
     parser.add_argument("--frame-stride", type=int, default=3, help="sample every Nth frame")
+    parser.add_argument("--min-reliable-frames", type=int, default=300, help="minimum sampled frames per video for reliable summary")
     parser.add_argument("--sleepy-ratio-threshold", type=float, default=0.15, help="predict sleepy if warning/alert ratio >= this value")
     parser.add_argument("--out-csv", default="reports/accuracy_eval.csv", help="output csv")
     parser.add_argument("--out-json", default="reports/accuracy_summary.json", help="output summary json")
@@ -228,6 +231,7 @@ def main() -> None:
         "config": {
             "max_frames": args.max_frames,
             "frame_stride": args.frame_stride,
+            "min_reliable_frames": args.min_reliable_frames,
             "sleepy_ratio_threshold": args.sleepy_ratio_threshold,
         },
         "drozy": {
@@ -242,6 +246,17 @@ def main() -> None:
             "fatigue_binary_accuracy": inner_acc,
             "note": "No fatigue ground-truth labels found in dataset files; accuracy is not computable.",
         },
+    }
+    evaluated = [r for r in results if r.gt_sleepy is not None]
+    min_used_frames = min((r.frames for r in evaluated), default=0)
+    summary["reliability"] = {
+        "is_reliable": bool(evaluated) and min_used_frames >= args.min_reliable_frames,
+        "min_used_frames": min_used_frames,
+        "videos_with_ground_truth": len(evaluated),
+        "note": (
+            "Use summary accuracy only when each evaluated video has enough sampled frames; "
+            "very small max_frames values are smoke tests, not statistically reliable accuracy."
+        ),
     }
 
     out_json = (root / args.out_json).resolve()
